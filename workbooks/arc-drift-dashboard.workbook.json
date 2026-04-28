@@ -169,6 +169,61 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend tagKeys = bag_keys(tags)\n| extend HasEnv = array_index_of(tagKeys, 'Environment') >= 0 or array_index_of(tagKeys, 'environment') >= 0,\n         HasOwner = array_index_of(tagKeys, 'Owner') >= 0 or array_index_of(tagKeys, 'owner') >= 0,\n         HasCC = array_index_of(tagKeys, 'CostCenter') >= 0 or array_index_of(tagKeys, 'costCenter') >= 0 or array_index_of(tagKeys, 'costcenter') >= 0\n| extend Status = iff(HasEnv and HasOwner and HasCC, 'All required tags present', 'Missing required tag(s)')\n| summarize count() by Status",
+              "size": 3,
+              "title": "Required tags compliance (Environment / Owner / CostCenter)",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "All required tags present", "color": "green" },
+                  { "seriesName": "Missing required tag(s)",   "color": "redBright" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-tags-compliance"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend mid = tolower(id)\n| project mid\n| join kind=leftouter (\n    insightsresources\n    | where type =~ 'microsoft.insights/datacollectionruleassociations'\n    | extend mid = tolower(tostring(split(id, '/providers/microsoft.insights')[0]))\n    | summarize Assocs = count() by mid\n) on mid\n| extend Coverage = iff(isnotnull(Assocs) and Assocs > 0, 'Has DCR association', 'No DCR association')\n| summarize count() by Coverage",
+              "size": 3,
+              "title": "DCR association coverage (no DCRA = no in-OS data)",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "Has DCR association", "color": "green" },
+                  { "seriesName": "No DCR association",  "color": "redBright" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-dcr-coverage"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend mid = tolower(id), name, rg = resourceGroup, os = tostring(properties.osType)\n| project mid, name, rg, os\n| join kind=leftouter (\n    insightsresources\n    | where type =~ 'microsoft.insights/datacollectionruleassociations'\n    | extend mid = tolower(tostring(split(id, '/providers/microsoft.insights')[0]))\n    | summarize DCRAs = count(), DCRs = make_set(tostring(properties.dataCollectionRuleId)) by mid\n) on mid\n| extend DCRAs = iff(isnull(DCRAs), 0, DCRAs)\n| where DCRAs == 0\n| project name, rg, os, DCRAs\n| order by name asc",
+              "size": 0,
+              "title": "Machines with no DCR association (drill-down)",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ]
+            },
+            "name": "table-no-dcra"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
               "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend osName = tostring(properties.osName), osVersion = tostring(properties.osVersion), agentVersion = tostring(properties.agentVersion), status = tostring(properties.status), lastSeen = todatetime(properties.lastStatusChange)\n| project name, resourceGroup, subscriptionId, location, osName, osVersion, agentVersion, status, lastSeen, tags\n| order by status asc, lastSeen asc",
               "size": 0,
               "title": "Inventory",
@@ -280,12 +335,21 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend machineId = id, machineName = name, osType = tostring(properties.osType)\n| join kind=leftouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines/extensions'\n    | extend machineId = tostring(split(id, '/extensions/')[0])\n    | summarize installed = make_set(name) by machineId\n) on machineId\n| extend installed = iff(isnull(installed), dynamic([]), installed)\n| extend hasAMA = (osType =~ 'windows' and array_index_of(installed,'AzureMonitorWindowsAgent') >= 0) or (osType =~ 'linux' and array_index_of(installed,'AzureMonitorLinuxAgent') >= 0),\n         hasChangeTracking = (osType =~ 'windows' and array_index_of(installed,'ChangeTracking-Windows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'ChangeTracking-Linux') >= 0),\n         hasMDE = (osType =~ 'windows' and array_index_of(installed,'MDE.Windows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'MDE.Linux') >= 0)\n| extend missingCount = toint(not(hasAMA)) + toint(not(hasChangeTracking)) + toint(not(hasMDE))\n| where missingCount > 0\n| project machineName, resourceGroup, osType, hasAMA, hasChangeTracking, hasMDE, missingCount, installed\n| order by missingCount desc",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend machineId = tolower(id), machineName = name, osType = tostring(properties.osType)\n| join kind=leftouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines/extensions'\n    | extend machineId = tolower(tostring(split(id, '/extensions/')[0]))\n    | summarize installed = make_set(name) by machineId\n) on machineId\n| extend installed = iff(isnull(installed), dynamic([]), installed)\n| extend\n    AMA = iff((osType =~ 'windows' and array_index_of(installed,'AzureMonitorWindowsAgent') >= 0) or (osType =~ 'linux' and array_index_of(installed,'AzureMonitorLinuxAgent') >= 0), 1, 0),\n    ChangeTracking = iff((osType =~ 'windows' and array_index_of(installed,'ChangeTracking-Windows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'ChangeTracking-Linux') >= 0), 1, 0),\n    Defender = iff((osType =~ 'windows' and array_index_of(installed,'MDE.Windows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'MDE.Linux') >= 0), 1, 0),\n    AzurePolicy = iff((osType =~ 'windows' and array_index_of(installed,'AzurePolicyforWindows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'AzurePolicyforLinux') >= 0), 1, 0)\n| extend missingCount = (4 - AMA - ChangeTracking - Defender - AzurePolicy)\n| project machineName, resourceGroup, osType, AMA, ChangeTracking, Defender, AzurePolicy, missingCount\n| order by missingCount desc, machineName asc",
               "size": 0,
-              "title": "Extension drift",
+              "title": "Extension drift heatmap — required extensions per machine (1 = installed, 0 = missing)",
               "queryType": 1,
               "resourceType": "microsoft.resourcegraph/resources",
-              "crossComponentResources": [ "{Subscriptions}" ]
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "gridSettings": {
+                "formatters": [
+                  { "columnMatch": "AMA",            "formatter": 4, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [ { "operator": "==", "thresholdValue": "0", "representation": "redBright", "text": "missing" }, { "operator": "Default", "representation": "green", "text": "✓" } ] } },
+                  { "columnMatch": "ChangeTracking", "formatter": 4, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [ { "operator": "==", "thresholdValue": "0", "representation": "redBright", "text": "missing" }, { "operator": "Default", "representation": "green", "text": "✓" } ] } },
+                  { "columnMatch": "Defender",       "formatter": 4, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [ { "operator": "==", "thresholdValue": "0", "representation": "redBright", "text": "missing" }, { "operator": "Default", "representation": "green", "text": "✓" } ] } },
+                  { "columnMatch": "AzurePolicy",    "formatter": 4, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [ { "operator": "==", "thresholdValue": "0", "representation": "redBright", "text": "missing" }, { "operator": "Default", "representation": "green", "text": "✓" } ] } },
+                  { "columnMatch": "missingCount",   "formatter": 8, "formatOptions": { "min": 0, "max": 4, "palette": "redBright" } }
+                ]
+              }
             },
             "name": "table-extensions"
           },
@@ -475,6 +539,62 @@
               "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
             },
             "name": "chart-changes"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| extend hour = datetime_part('hour', TimeGenerated), dow = dayofweek(TimeGenerated)\n| where hour < 8 or hour >= 18 or dow == 0d or dow == 6d\n| summarize AfterHoursChanges = count(), Last = max(TimeGenerated) by Computer, ConfigChangeType\n| order by AfterHoursChanges desc",
+              "size": 0,
+              "title": "After-hours changes (outside 08:00–18:00 local-to-agent, or weekends)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "gridSettings": {
+                "formatters": [
+                  { "columnMatch": "Computer",          "formatter": 7, "formatOptions": { "linkTarget": "parameter", "parameterName": "selectedComputer" } },
+                  { "columnMatch": "ConfigChangeType",  "formatter": 7, "formatOptions": { "linkTarget": "parameter", "parameterName": "selectedChangeType" } },
+                  { "columnMatch": "AfterHoursChanges", "formatter": 8, "formatOptions": { "min": 0, "palette": "orange" } }
+                ]
+              }
+            },
+            "name": "table-after-hours"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| extend\n    SensitiveFile = ConfigChangeType == 'Files' and (FileSystemPath has_any('/etc/passwd','/etc/shadow','/etc/sudoers','/etc/ssh/sshd_config','/etc/pam','/etc/cron','/etc/hosts','drivers\\\\etc\\\\hosts','applicationHost.config','\\\\System32\\\\Tasks\\\\')),\n    SensitiveReg = ConfigChangeType == 'Registry' and (RegistryKey has_any('Lsa','Winlogon','LanmanServer','Defender','CurrentVersion\\\\Run','RunOnce','Policies\\\\System')),\n    SensitiveSvc = ConfigChangeType == 'WindowsServices' and SvcName has_any('WinDefend','MpsSvc','Sense','EventLog','AzureMonitorAgent','himds','wuauserv'),\n    SensitiveDaemon = ConfigChangeType == 'Daemons' and SvcName has_any('sshd','auditd','firewalld','ufw','mdatp','azuremonitoragent','cron')\n| where SensitiveFile or SensitiveReg or SensitiveSvc or SensitiveDaemon\n| extend SensitiveCategory = case(SensitiveFile, 'File', SensitiveReg, 'Registry', SensitiveSvc, 'Service', SensitiveDaemon, 'Daemon', 'Other')\n| project TimeGenerated, Computer, SensitiveCategory, ConfigChangeType, FileSystemPath, RegistryKey, ValueName, SvcName, SvcState, SvcPreviousState, _ResourceId\n| order by TimeGenerated desc",
+              "size": 0,
+              "title": "Sensitive changes — privileged paths, security registry, security services/daemons",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "showExportToExcel": true,
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "TimeGenerated",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "OpenBlade",
+                      "linkIsContextBlade": false,
+                      "bladeOpenContext": {
+                        "bladeName": "LogsBlade",
+                        "extensionName": "Microsoft_OperationsManagementSuite_Workspace",
+                        "bladeParameters": [
+                          { "name": "resourceId", "source": "static", "value": "{LogAnalyticsWorkspace}" },
+                          { "name": "query",      "source": "static", "value": "ConfigurationChange\n| where TimeGenerated == datetime('${TimeGenerated}')\n| where Computer == '${Computer}'" }
+                        ]
+                      }
+                    }
+                  },
+                  { "columnMatch": "Computer",          "formatter": 7, "formatOptions": { "linkTarget": "parameter", "parameterName": "selectedComputer" } },
+                  { "columnMatch": "SensitiveCategory", "formatter": 4, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [ { "operator": "Default", "representation": "redBright", "text": "{0}" } ] } }
+                ]
+              }
+            },
+            "name": "table-sensitive-changes"
           },
           {
             "type": 3,
