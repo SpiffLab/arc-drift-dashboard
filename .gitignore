@@ -1,0 +1,25 @@
+# Bicep build artifacts
+*.bicep.json
+main.json
+infra/**/*.json
+!infra/**/*.bicepparam.json
+
+# Local env / secrets
+.env
+.env.*
+*.pfx
+*.pem
+*.key
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Az CLI / tooling caches
+.azure/
+.azurite/
+
+# Logs
+*.log

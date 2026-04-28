@@ -1,0 +1,16 @@
+// Azure Update Manager — pending updates per Arc machine.
+patchassessmentresources
+| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'
+   or  type =~ 'microsoft.hybridcompute/machines/patchassessmentresults'
+| extend machineId = tolower(tostring(split(id, '/providers/microsoft.hybridcompute/machines/')[1]))
+| extend machineName = tostring(split(machineId, '/')[0])
+| extend classification = tostring(properties.classifications),
+         severity       = tostring(properties.msrcSeverity),
+         publishedDate  = todatetime(properties.publishedDate)
+| where type endswith 'softwarepatches'
+| summarize pending = count(),
+            critical = countif(severity =~ 'Critical'),
+            security = countif(classification has 'Security'),
+            oldest = min(publishedDate)
+        by machineName
+| order by critical desc, pending desc

@@ -1,0 +1,8 @@
+// Stale Arc machines — no heartbeat in the last hour. (Catch agents that have stopped reporting.)
+Heartbeat
+| where Category == 'Direct Agent'
+| summarize lastHeartbeat = max(TimeGenerated) by Computer, ResourceId, OSType, OSName, OSMajorVersion, ComputerEnvironment
+| where ComputerEnvironment == 'Non-Azure'
+| extend minutesSinceHeartbeat = datetime_diff('minute', now(), lastHeartbeat)
+| where minutesSinceHeartbeat > 60
+| order by minutesSinceHeartbeat desc

@@ -1,0 +1,11 @@
+// Software inventory diff — software present on some machines but not others in the same group.
+// Useful as a coarse "what's drifted from the fleet baseline" view.
+ConfigurationData
+| where ConfigDataType == 'Software'
+| where TimeGenerated > ago(1d)
+| summarize machines = make_set(Computer), machineCount = dcount(Computer) by SoftwareName, Publisher, CurrentVersion
+| extend totalMachines = toscalar(ConfigurationData | where ConfigDataType == 'Software' and TimeGenerated > ago(1d) | summarize dcount(Computer))
+| extend coverage = round(100.0 * machineCount / totalMachines, 1)
+| where coverage < 100 and coverage > 0
+| project SoftwareName, Publisher, CurrentVersion, machineCount, totalMachines, coverage, machines
+| order by coverage asc, SoftwareName asc

@@ -1,0 +1,396 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "# Arc Drift Dashboard\n\nDrift detection across **Azure Arc–enabled servers**, both at the Azure control-plane level and inside the guest OS. Use the tabs below to switch views. All data is read-only and obeys your Entra RBAC."
+      },
+      "name": "title"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "subs",
+            "version": "KqlParameterItem/1.0",
+            "name": "Subscriptions",
+            "type": 6,
+            "isRequired": true,
+            "multiSelect": true,
+            "quote": "'",
+            "delimiter": ",",
+            "value": [ "value::all" ],
+            "typeSettings": { "additionalResourceOptions": [ "value::all" ], "includeAll": true }
+          },
+          {
+            "id": "workspace",
+            "version": "KqlParameterItem/1.0",
+            "name": "LogAnalyticsWorkspace",
+            "label": "Log Analytics workspace",
+            "type": 5,
+            "isRequired": true,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "typeSettings": { "additionalResourceOptions": [], "includeAll": false },
+            "value": null
+          },
+          {
+            "id": "timeRange",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": { "durationMs": 86400000 },
+            "typeSettings": {
+              "selectableValues": [
+                { "durationMs": 3600000 },
+                { "durationMs": 14400000 },
+                { "durationMs": 86400000 },
+                { "durationMs": 259200000 },
+                { "durationMs": 604800000 },
+                { "durationMs": 2592000000 }
+              ]
+            }
+          }
+        ],
+        "style": "pills",
+        "queryType": 0
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 11,
+      "content": {
+        "version": "LinkItem/1.0",
+        "style": "tabs",
+        "links": [
+          { "id": "overview",  "cellValue": "tab", "linkTarget": "parameter", "linkLabel": "Overview",        "subTarget": "overview",  "style": "link" },
+          { "id": "policy",    "cellValue": "tab", "linkTarget": "parameter", "linkLabel": "Policy",          "subTarget": "policy",    "style": "link" },
+          { "id": "guestcfg",  "cellValue": "tab", "linkTarget": "parameter", "linkLabel": "Machine Config",  "subTarget": "guestcfg",  "style": "link" },
+          { "id": "extensions","cellValue": "tab", "linkTarget": "parameter", "linkLabel": "Extensions/Tags", "subTarget": "extensions","style": "link" },
+          { "id": "updates",   "cellValue": "tab", "linkTarget": "parameter", "linkLabel": "Updates",         "subTarget": "updates",   "style": "link" },
+          { "id": "defender",  "cellValue": "tab", "linkTarget": "parameter", "linkLabel": "Defender",        "subTarget": "defender",  "style": "link" },
+          { "id": "changes",   "cellValue": "tab", "linkTarget": "parameter", "linkLabel": "OS Changes",      "subTarget": "changes",   "style": "link" },
+          { "id": "inventory", "cellValue": "tab", "linkTarget": "parameter", "linkLabel": "OS Inventory",    "subTarget": "inventory", "style": "link" }
+        ]
+      },
+      "name": "tabs"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend status = tostring(properties.status), lastSeen = todatetime(properties.lastStatusChange)\n| summarize Total = count(),\n            Connected = countif(status == 'Connected'),\n            Disconnected = countif(status == 'Disconnected'),\n            Expired = countif(status == 'Expired')",
+              "size": 4,
+              "title": "Arc machines — connection state",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "tiles",
+              "tileSettings": { "showBorder": false, "titleContent": { "columnMatch": "Total", "formatter": 12, "formatOptions": { "palette": "auto" } } }
+            },
+            "name": "tile-connected"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend osType = tostring(properties.osType)\n| summarize count() by osType",
+              "size": 1,
+              "title": "Machines by OS type",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "name": "chart-os"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend osName = tostring(properties.osName), osVersion = tostring(properties.osVersion), agentVersion = tostring(properties.agentVersion), status = tostring(properties.status), lastSeen = todatetime(properties.lastStatusChange)\n| project name, resourceGroup, subscriptionId, location, osName, osVersion, agentVersion, status, lastSeen, tags\n| order by status asc, lastSeen asc",
+              "size": 0,
+              "title": "Inventory",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "exportFieldName": "name",
+              "exportParameterName": "selectedMachine",
+              "showExportToExcel": true
+            },
+            "name": "table-inventory"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "overview" },
+      "name": "group-overview"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "policyresources\n| where type == 'microsoft.policyinsights/policystates'\n| where tolower(tostring(properties.resourceType)) startswith 'microsoft.hybridcompute/machines'\n| summarize Compliant = countif(properties.complianceState == 'Compliant'),\n            NonCompliant = countif(properties.complianceState == 'NonCompliant')",
+              "size": 4,
+              "title": "Policy state — Arc machines",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "tiles"
+            },
+            "name": "tile-policy"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "policyresources\n| where type == 'microsoft.policyinsights/policystates'\n| where properties.complianceState == 'NonCompliant'\n| where tolower(tostring(properties.resourceType)) startswith 'microsoft.hybridcompute/machines'\n| extend machine = tostring(properties.resourceId), policyDef = tostring(properties.policyDefinitionName), assignment = tostring(properties.policyAssignmentName), timestamp = todatetime(properties.timestamp)\n| summarize lastSeen = max(timestamp), violations = count() by machine, policyDef, assignment\n| order by violations desc, lastSeen desc",
+              "size": 0,
+              "title": "Non-compliant Arc machines",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "showExportToExcel": true
+            },
+            "name": "table-policy"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "policy" },
+      "name": "group-policy"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "guestconfigurationresources\n| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'\n| extend machineId = tolower(tostring(split(id, '/providers/microsoft.guestconfiguration')[0])), assignment = name, compliance = tostring(properties.complianceStatus), lastCompliance = todatetime(properties.lastComplianceStatusChecked), configurationName = tostring(properties.guestConfiguration.name)\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' | project machineId = tolower(id), machineName = name, resourceGroup) on machineId\n| project machineName, resourceGroup, configurationName, assignment, compliance, lastCompliance\n| order by compliance asc, lastCompliance asc",
+              "size": 0,
+              "title": "Machine Configuration assignments — compliance",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "compliance",
+                    "formatter": 11,
+                    "formatOptions": {
+                      "thresholdsOptions": "icons",
+                      "thresholdsGrid": [
+                        { "operator": "==", "thresholdValue": "Compliant",     "representation": "success",  "text": "{0}{1}" },
+                        { "operator": "==", "thresholdValue": "NonCompliant",  "representation": "critical", "text": "{0}{1}" },
+                        { "operator": "Default",                                "representation": "warning",  "text": "{0}{1}" }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "name": "table-guestconfig"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "guestcfg" },
+      "name": "group-guestcfg"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": { "json": "Edit the `requiredExtensions` and `requiredTags` arrays in the queries to match your baseline." },
+            "name": "extensions-help"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let requiredExtensions = dynamic(['AzureMonitorLinuxAgent','AzureMonitorWindowsAgent','ChangeTracking-Linux','ChangeTracking-Windows','MDE.Linux','MDE.Windows']);\nresources\n| where type =~ 'microsoft.hybridcompute/machines'\n| project machineId = id, machineName = name, resourceGroup, osType = tostring(properties.osType)\n| join kind=leftouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines/extensions'\n    | extend machineId = tostring(split(id, '/extensions/')[0])\n    | summarize installed = make_set(name) by machineId\n) on machineId\n| extend installed = iff(isnull(installed), dynamic([]), installed)\n| extend missing = set_difference(requiredExtensions, installed)\n| extend missingCount = array_length(missing)\n| where missingCount > 0\n| project machineName, resourceGroup, osType, installed, missing, missingCount\n| order by missingCount desc",
+              "size": 0,
+              "title": "Extension drift",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ]
+            },
+            "name": "table-extensions"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let requiredTags = dynamic(['environment','owner','costCenter','dataClassification']);\nresources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend tagKeys = bag_keys(tags)\n| extend missingTags = set_difference(requiredTags, tagKeys)\n| extend missingCount = array_length(missingTags)\n| where missingCount > 0\n| project name, resourceGroup, location, missingTags, missingCount\n| order by missingCount desc",
+              "size": 0,
+              "title": "Tag drift",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ]
+            },
+            "name": "table-tags"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "extensions" },
+      "name": "group-extensions"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend machineId = tolower(tostring(split(id, '/providers/microsoft.hybridcompute/machines/')[1]))\n| extend machineName = tostring(split(machineId, '/')[0])\n| extend classification = tostring(properties.classifications), severity = tostring(properties.msrcSeverity), publishedDate = todatetime(properties.publishedDate)\n| summarize pending = count(), critical = countif(severity =~ 'Critical'), security = countif(classification has 'Security'), oldest = min(publishedDate) by machineName\n| order by critical desc, pending desc",
+              "size": 0,
+              "title": "Pending updates per machine",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ]
+            },
+            "name": "table-updates"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "updates" },
+      "name": "group-updates"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend status = tostring(properties.status.code), severity = tostring(properties.metadata.severity), displayName = tostring(properties.displayName), resourceId = tostring(properties.resourceDetails.Id)\n| where status == 'Unhealthy'\n| where tolower(resourceId) contains '/microsoft.hybridcompute/machines/'\n| extend machineName = tostring(split(resourceId, '/machines/')[1])\n| project machineName, displayName, severity, recommendation = name, resourceId\n| order by severity asc, machineName asc",
+              "size": 0,
+              "title": "Open Defender for Cloud recommendations (Arc machines)",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ]
+            },
+            "name": "table-defender"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "defender" },
+      "name": "group-defender"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| summarize fileChanges=countif(ConfigChangeType=='Files'), registryChanges=countif(ConfigChangeType=='Registry'), serviceChanges=countif(ConfigChangeType=='WindowsServices'), softwareChanges=countif(ConfigChangeType=='Software'), daemonChanges=countif(ConfigChangeType=='Daemons'), total=count() by Computer\n| order by total desc",
+              "size": 0,
+              "title": "Change Tracking — change counts by computer",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
+            },
+            "name": "table-changes-summary"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| summarize count() by bin(TimeGenerated, 1h), ConfigChangeType\n| render timechart",
+              "size": 0,
+              "title": "Change rate over time",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
+            },
+            "name": "chart-changes"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| project TimeGenerated, Computer, ConfigChangeType, ChangeCategory, FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState, FileSystemPath, Size, Sha256, SoftwareName, Previous, Current, RegistryKey, ValueName, ValueData\n| order by TimeGenerated desc",
+              "size": 0,
+              "title": "Change Tracking — detail",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
+            },
+            "name": "table-changes-detail"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "changes" },
+      "name": "group-changes"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Heartbeat\n| where Category == 'Direct Agent'\n| summarize lastHeartbeat = max(TimeGenerated) by Computer, OSType, OSName, ComputerEnvironment\n| where ComputerEnvironment == 'Non-Azure'\n| extend minutesSinceHeartbeat = datetime_diff('minute', now(), lastHeartbeat)\n| where minutesSinceHeartbeat > 60\n| order by minutesSinceHeartbeat desc",
+              "size": 0,
+              "title": "Stale Arc machines (no heartbeat > 60 minutes)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
+            },
+            "name": "table-stale"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationData\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| summarize machines = make_set(Computer), machineCount = dcount(Computer) by SoftwareName, Publisher, CurrentVersion\n| extend totalMachines = toscalar(ConfigurationData | where ConfigDataType == 'Software' and TimeGenerated > ago(1d) | summarize dcount(Computer))\n| extend coverage = round(100.0 * machineCount / totalMachines, 1)\n| where coverage < 100 and coverage > 0\n| project SoftwareName, Publisher, CurrentVersion, machineCount, totalMachines, coverage, machines\n| order by coverage asc, SoftwareName asc",
+              "size": 0,
+              "title": "Software inventory — partial-coverage entries (potential drift)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
+            },
+            "name": "table-inventory-diff"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "inventory" },
+      "name": "group-inventory"
+    }
+  ],
+  "fallbackResourceIds": [ "Azure Monitor" ],
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json"
+}

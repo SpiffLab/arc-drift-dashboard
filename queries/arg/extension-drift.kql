@@ -1,0 +1,18 @@
+// Extension drift: which Arc machines are missing required extensions.
+// Edit `requiredExtensions` to match your baseline.
+let requiredExtensions = dynamic(['AzureMonitorLinuxAgent','AzureMonitorWindowsAgent','ChangeTracking-Linux','ChangeTracking-Windows','MDE.Linux','MDE.Windows']);
+resources
+| where type =~ 'microsoft.hybridcompute/machines'
+| project machineId = id, machineName = name, resourceGroup, subscriptionId, osType = tostring(properties.osType)
+| join kind=leftouter (
+    resources
+    | where type =~ 'microsoft.hybridcompute/machines/extensions'
+    | extend machineId = tostring(split(id, '/extensions/')[0])
+    | summarize installed = make_set(name) by machineId
+) on machineId
+| extend installed = iff(isnull(installed), dynamic([]), installed)
+| extend missing = set_difference(requiredExtensions, installed)
+| extend missingCount = array_length(missing)
+| where missingCount > 0
+| project machineName, resourceGroup, osType, installed, missing, missingCount
+| order by missingCount desc

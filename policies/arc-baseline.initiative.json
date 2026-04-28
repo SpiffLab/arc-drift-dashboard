@@ -1,0 +1,59 @@
+{
+  "properties": {
+    "displayName": "Arc Server Drift Baseline",
+    "description": "Baseline policies for Azure Arc-enabled servers — required extensions, tags, and Machine Configuration assignments. Drives the Policy and Extensions tabs of the Arc Drift Dashboard.",
+    "metadata": {
+      "category": "Azure Arc",
+      "version": "1.0.0"
+    },
+    "policyDefinitionGroups": [
+      { "name": "agents",     "displayName": "Required agents and extensions" },
+      { "name": "tagging",    "displayName": "Required tags" },
+      { "name": "guestcfg",   "displayName": "Guest configuration baseline" },
+      { "name": "patching",   "displayName": "Update Manager onboarding" }
+    ],
+    "policyDefinitions": [
+      {
+        "policyDefinitionReferenceId": "deployAmaLinux",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/845857af-0333-4c5d-bbbc-6076697da122",
+        "groupNames": [ "agents" ]
+      },
+      {
+        "policyDefinitionReferenceId": "deployAmaWindows",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/637125fd-7c39-4b94-bb0a-d331faf333a9",
+        "groupNames": [ "agents" ]
+      },
+      {
+        "policyDefinitionReferenceId": "deployChangeTrackingLinux",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/0d404269-25c7-4d50-9135-fcb4475d39ae",
+        "groupNames": [ "agents", "guestcfg" ]
+      },
+      {
+        "policyDefinitionReferenceId": "deployChangeTrackingWindows",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/93a52c0b-fb1a-4d6a-b948-f053c97c6cb7",
+        "groupNames": [ "agents", "guestcfg" ]
+      },
+      {
+        "policyDefinitionReferenceId": "requireEnvironmentTag",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "environment" }
+        },
+        "groupNames": [ "tagging" ]
+      },
+      {
+        "policyDefinitionReferenceId": "requireOwnerTag",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/871b6d14-10aa-478d-b590-94f262ecfa99",
+        "parameters": {
+          "tagName": { "value": "owner" }
+        },
+        "groupNames": [ "tagging" ]
+      },
+      {
+        "policyDefinitionReferenceId": "periodicAssessmentArc",
+        "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/ba0df93e-e4ac-479a-aac2-134bbae39a1a",
+        "groupNames": [ "patching" ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+// Change Tracking summary — counts of file/registry/service/software/daemon changes
+// in the selected time window, by computer.
+ConfigurationChange
+| where TimeGenerated {TimeRange}
+| summarize
+    fileChanges     = countif(ConfigChangeType == 'Files'),
+    registryChanges = countif(ConfigChangeType == 'Registry'),
+    serviceChanges  = countif(ConfigChangeType == 'WindowsServices'),
+    softwareChanges = countif(ConfigChangeType == 'Software'),
+    daemonChanges   = countif(ConfigChangeType == 'Daemons'),
+    total           = count()
+  by Computer
+| order by total desc

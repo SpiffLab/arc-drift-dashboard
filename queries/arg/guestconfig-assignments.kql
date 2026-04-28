@@ -1,0 +1,15 @@
+// Machine Configuration (guest config) assignment compliance per Arc machine.
+guestconfigurationresources
+| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'
+| extend machineId = tolower(tostring(split(id, '/providers/microsoft.guestconfiguration')[0])),
+         assignment = name,
+         compliance = tostring(properties.complianceStatus),
+         lastCompliance = todatetime(properties.lastComplianceStatusChecked),
+         configurationName = tostring(properties.guestConfiguration.name)
+| join kind=inner (
+    resources
+    | where type =~ 'microsoft.hybridcompute/machines'
+    | project machineId = tolower(id), machineName = name, resourceGroup, subscriptionId
+) on machineId
+| project machineName, resourceGroup, configurationName, assignment, compliance, lastCompliance
+| order by compliance asc, lastCompliance asc

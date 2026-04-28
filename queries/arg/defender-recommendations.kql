@@ -1,0 +1,12 @@
+// Open Defender for Cloud recommendations scoped to Arc machines.
+securityresources
+| where type == 'microsoft.security/assessments'
+| extend status = tostring(properties.status.code),
+         severity = tostring(properties.metadata.severity),
+         displayName = tostring(properties.displayName),
+         resourceId = tostring(properties.resourceDetails.Id)
+| where status == 'Unhealthy'
+| where tolower(resourceId) contains '/microsoft.hybridcompute/machines/'
+| extend machineName = tostring(split(resourceId, '/machines/')[1])
+| project machineName, displayName, severity, recommendation = name, resourceId
+| order by severity asc, machineName asc

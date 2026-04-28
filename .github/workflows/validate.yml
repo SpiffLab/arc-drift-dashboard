@@ -1,0 +1,45 @@
+name: validate
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - 'workbooks/**'
+      - 'queries/**'
+      - 'policies/**'
+      - '.github/workflows/**'
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  bicep:
+    name: Bicep build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Bicep
+        run: az bicep install
+      - name: Bicep build (lint + compile)
+        run: az bicep build --file infra/main.bicep --outdir ./out
+
+  json-and-kql:
+    name: Workbook + query lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate workbook JSON
+        run: |
+          for f in workbooks/*.json policies/*.json; do
+            echo "Checking $f"
+            python -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
+          done
+      - name: Sanity-check KQL files are non-empty
+        run: |
+          set -e
+          shopt -s globstar
+          for f in queries/**/*.kql; do
+            if [ ! -s "$f" ]; then echo "Empty query: $f" >&2; exit 1; fi
+          done

@@ -1,0 +1,14 @@
+// Non-compliant Arc machines from Azure Policy state.
+policyresources
+| where type == 'microsoft.policyinsights/policystates'
+| where properties.complianceState == 'NonCompliant'
+| where tolower(tostring(properties.resourceType)) == 'microsoft.hybridcompute/machines'
+   or tolower(tostring(properties.resourceType)) startswith 'microsoft.hybridcompute/machines/'
+| extend machine        = tostring(properties.resourceId),
+         policyDef      = tostring(properties.policyDefinitionName),
+         policyDispName = tostring(properties.policyDefinitionAction),
+         assignment     = tostring(properties.policyAssignmentName),
+         category       = tostring(properties.policyDefinitionGroupNames),
+         timestamp      = todatetime(properties.timestamp)
+| summarize lastSeen = max(timestamp), violations = count() by machine, policyDef, assignment
+| order by violations desc, lastSeen desc

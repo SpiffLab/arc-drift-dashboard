@@ -1,0 +1,20 @@
+// Azure Arc machine inventory with agent + extension summary.
+// Scope: Resource Graph. Use as the base table for most azure-side drift views.
+resources
+| where type =~ 'microsoft.hybridcompute/machines'
+| extend osName       = tostring(properties.osName),
+         osVersion    = tostring(properties.osVersion),
+         agentVersion = tostring(properties.agentVersion),
+         status       = tostring(properties.status),
+         lastSeen     = todatetime(properties.lastStatusChange),
+         domain       = tostring(properties.domainName)
+| join kind=leftouter (
+    resources
+    | where type =~ 'microsoft.hybridcompute/machines/extensions'
+    | extend machineId = tolower(tostring(split(id, '/extensions/')[0]))
+    | summarize extensions = make_set(name), extCount = dcount(name) by machineId
+) on $left.id == $right.machineId
+| project id, name, resourceGroup, subscriptionId, location,
+          osName, osVersion, agentVersion, status, lastSeen, domain,
+          extensions, extCount, tags
+| order by status asc, lastSeen asc

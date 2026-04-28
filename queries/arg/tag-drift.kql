@@ -1,0 +1,11 @@
+// Tag drift: Arc machines missing required tag keys.
+// Edit `requiredTags` to match your baseline.
+let requiredTags = dynamic(['environment','owner','costCenter','dataClassification']);
+resources
+| where type =~ 'microsoft.hybridcompute/machines'
+| extend tagKeys = bag_keys(tags)
+| extend missingTags = set_difference(requiredTags, tagKeys)
+| extend missingCount = array_length(missingTags)
+| where missingCount > 0
+| project name, resourceGroup, subscriptionId, location, missingTags, missingCount
+| order by missingCount desc
