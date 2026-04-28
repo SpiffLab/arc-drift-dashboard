@@ -1,11 +1,18 @@
 // Tag drift: Arc machines missing required tag keys.
-// Edit `requiredTags` to match your baseline.
-let requiredTags = dynamic(['environment','owner','costCenter','dataClassification']);
+// Note: Azure Resource Graph does NOT support `let` or `set_difference`,
+// so each required tag is checked as its own column.
+// Edit the array_index_of() lines below to match your baseline.
 resources
 | where type =~ 'microsoft.hybridcompute/machines'
 | extend tagKeys = bag_keys(tags)
-| extend missingTags = set_difference(requiredTags, tagKeys)
-| extend missingCount = array_length(missingTags)
+| extend hasEnvironment        = array_index_of(tagKeys, 'environment')        >= 0,
+         hasOwner              = array_index_of(tagKeys, 'owner')              >= 0,
+         hasCostCenter         = array_index_of(tagKeys, 'costCenter')         >= 0,
+         hasDataClassification = array_index_of(tagKeys, 'dataClassification') >= 0
+| extend missingCount = toint(not(hasEnvironment))
+                      + toint(not(hasOwner))
+                      + toint(not(hasCostCenter))
+                      + toint(not(hasDataClassification))
 | where missingCount > 0
-| project name, resourceGroup, subscriptionId, location, missingTags, missingCount
+| project name, resourceGroup, location, hasEnvironment, hasOwner, hasCostCenter, hasDataClassification, missingCount, tags
 | order by missingCount desc

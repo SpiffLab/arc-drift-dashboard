@@ -1,9 +1,10 @@
 // Extension drift: which Arc machines are missing required extensions.
-// Edit `requiredExtensions` to match your baseline.
-let requiredExtensions = dynamic(['AzureMonitorLinuxAgent','AzureMonitorWindowsAgent','ChangeTracking-Linux','ChangeTracking-Windows','MDE.Linux','MDE.Windows']);
+// Note: Azure Resource Graph does NOT support `let`, `mv-apply`, or `set_difference`,
+// so the required-extension list is expressed as per-extension boolean columns.
+// Edit the array_index_of() lines below to match your baseline.
 resources
 | where type =~ 'microsoft.hybridcompute/machines'
-| project machineId = id, machineName = name, resourceGroup, subscriptionId, osType = tostring(properties.osType)
+| extend machineId = id, machineName = name, osType = tostring(properties.osType)
 | join kind=leftouter (
     resources
     | where type =~ 'microsoft.hybridcompute/machines/extensions'
@@ -11,8 +12,13 @@ resources
     | summarize installed = make_set(name) by machineId
 ) on machineId
 | extend installed = iff(isnull(installed), dynamic([]), installed)
-| extend missing = set_difference(requiredExtensions, installed)
-| extend missingCount = array_length(missing)
+| extend hasAMA = (osType =~ 'windows' and array_index_of(installed,'AzureMonitorWindowsAgent') >= 0)
+              or (osType =~ 'linux'   and array_index_of(installed,'AzureMonitorLinuxAgent')   >= 0),
+         hasChangeTracking = (osType =~ 'windows' and array_index_of(installed,'ChangeTracking-Windows') >= 0)
+                          or (osType =~ 'linux'   and array_index_of(installed,'ChangeTracking-Linux')   >= 0),
+         hasMDE = (osType =~ 'windows' and array_index_of(installed,'MDE.Windows') >= 0)
+               or (osType =~ 'linux'   and array_index_of(installed,'MDE.Linux')   >= 0)
+| extend missingCount = toint(not(hasAMA)) + toint(not(hasChangeTracking)) + toint(not(hasMDE))
 | where missingCount > 0
-| project machineName, resourceGroup, osType, installed, missing, missingCount
+| project machineName, resourceGroup, osType, hasAMA, hasChangeTracking, hasMDE, missingCount, installed
 | order by missingCount desc
