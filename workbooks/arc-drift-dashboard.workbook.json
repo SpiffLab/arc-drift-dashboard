@@ -310,15 +310,104 @@
         "groupType": "editable",
         "items": [
           {
+            "type": 9,
+            "content": {
+              "version": "KqlParameterItem/1.0",
+              "parameters": [
+                {
+                  "id": "selectedComputer",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "selectedComputer",
+                  "label": "Filter by computer",
+                  "type": 1,
+                  "isRequired": false,
+                  "value": ""
+                },
+                {
+                  "id": "selectedChangeType",
+                  "version": "KqlParameterItem/1.0",
+                  "name": "selectedChangeType",
+                  "label": "Filter by change type",
+                  "type": 2,
+                  "isRequired": false,
+                  "value": "",
+                  "typeSettings": {
+                    "additionalResourceOptions": [],
+                    "showDefault": false
+                  },
+                  "jsonData": "[\"\",\"Files\",\"Registry\",\"WindowsServices\",\"Software\",\"Daemons\"]"
+                }
+              ],
+              "style": "pills",
+              "queryType": 0
+            },
+            "name": "changes-drill-params"
+          },
+          {
+            "type": 11,
+            "content": {
+              "version": "LinkItem/1.0",
+              "style": "list",
+              "links": [
+                {
+                  "id": "clear-computer",
+                  "cellValue": "selectedComputer",
+                  "linkTarget": "parameter",
+                  "linkLabel": "↺ Clear computer filter",
+                  "subTarget": "",
+                  "style": "link"
+                },
+                {
+                  "id": "clear-changetype",
+                  "cellValue": "selectedChangeType",
+                  "linkTarget": "parameter",
+                  "linkLabel": "↺ Clear change-type filter",
+                  "subTarget": "",
+                  "style": "link"
+                },
+                {
+                  "id": "open-logs",
+                  "linkTarget": "OpenBlade",
+                  "linkLabel": "↗ Open current view in Logs blade",
+                  "style": "link",
+                  "linkIsContextBlade": false,
+                  "bladeOpenContext": {
+                    "bladeName": "LogsBlade",
+                    "extensionName": "Microsoft_OperationsManagementSuite_Workspace",
+                    "bladeParameters": [
+                      { "name": "resourceId", "source": "static", "value": "{LogAnalyticsWorkspace}" },
+                      { "name": "query",      "source": "static", "value": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| order by TimeGenerated desc" }
+                    ]
+                  }
+                }
+              ]
+            },
+            "name": "changes-drill-actions"
+          },
+          {
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
               "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| summarize fileChanges=countif(ConfigChangeType=='Files'), registryChanges=countif(ConfigChangeType=='Registry'), serviceChanges=countif(ConfigChangeType=='WindowsServices'), softwareChanges=countif(ConfigChangeType=='Software'), daemonChanges=countif(ConfigChangeType=='Daemons'), total=count() by Computer\n| order by total desc",
               "size": 0,
-              "title": "Change Tracking — change counts by computer",
+              "title": "Change Tracking — change counts by computer (click a row to drill in)",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "exportFieldName": "Computer",
+              "exportParameterName": "selectedComputer",
+              "showExportToExcel": true,
+              "gridSettings": {
+                "formatters": [
+                  { "columnMatch": "Computer",        "formatter": 7, "formatOptions": { "linkTarget": "parameter", "linkIsContextBlade": false, "parameterName": "selectedComputer" } },
+                  { "columnMatch": "fileChanges",     "formatter": 8, "formatOptions": { "min": 0, "palette": "blue" } },
+                  { "columnMatch": "registryChanges", "formatter": 8, "formatOptions": { "min": 0, "palette": "purple" } },
+                  { "columnMatch": "serviceChanges",  "formatter": 8, "formatOptions": { "min": 0, "palette": "green" } },
+                  { "columnMatch": "softwareChanges", "formatter": 8, "formatOptions": { "min": 0, "palette": "orange" } },
+                  { "columnMatch": "daemonChanges",   "formatter": 8, "formatOptions": { "min": 0, "palette": "yellow" } },
+                  { "columnMatch": "total",           "formatter": 4, "formatOptions": { "palette": "redBright" } }
+                ]
+              }
             },
             "name": "table-changes-summary"
           },
@@ -326,9 +415,9 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| summarize count() by bin(TimeGenerated, 1h), ConfigChangeType\n| render timechart",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| summarize count() by bin(TimeGenerated, 1h), ConfigChangeType\n| render timechart",
               "size": 0,
-              "title": "Change rate over time",
+              "title": "Change rate over time (filtered)",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
@@ -339,12 +428,35 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| project TimeGenerated, Computer, ConfigChangeType, ChangeCategory, FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState, FileSystemPath, Size, Sha256, SoftwareName, Previous, Current, RegistryKey, ValueName, ValueData\n| order by TimeGenerated desc",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| project TimeGenerated, Computer, ConfigChangeType, ChangeCategory, FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState, FileSystemPath, Size, Sha256, SoftwareName, Previous, Current, RegistryKey, ValueName, ValueData, _ResourceId\n| order by TimeGenerated desc",
               "size": 0,
-              "title": "Change Tracking — detail",
+              "title": "Change Tracking — detail (click a row to open the raw event in Logs)",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ]
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "showExportToExcel": true,
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "TimeGenerated",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "OpenBlade",
+                      "linkIsContextBlade": false,
+                      "bladeOpenContext": {
+                        "bladeName": "LogsBlade",
+                        "extensionName": "Microsoft_OperationsManagementSuite_Workspace",
+                        "bladeParameters": [
+                          { "name": "resourceId", "source": "static", "value": "{LogAnalyticsWorkspace}" },
+                          { "name": "query",      "source": "static", "value": "ConfigurationChange\n| where TimeGenerated == datetime('${TimeGenerated}')\n| where Computer == '${Computer}'" }
+                        ]
+                      }
+                    }
+                  },
+                  { "columnMatch": "Computer",        "formatter": 7, "formatOptions": { "linkTarget": "parameter", "parameterName": "selectedComputer" } },
+                  { "columnMatch": "ConfigChangeType","formatter": 7, "formatOptions": { "linkTarget": "parameter", "parameterName": "selectedChangeType" } }
+                ]
+              }
             },
             "name": "table-changes-detail"
           }
