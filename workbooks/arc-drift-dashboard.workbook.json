@@ -104,14 +104,66 @@
             "content": {
               "version": "KqlItem/1.0",
               "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend osType = tostring(properties.osType)\n| summarize count() by osType",
-              "size": 1,
+              "size": 3,
               "title": "Machines by OS type",
               "queryType": 1,
               "resourceType": "microsoft.resourcegraph/resources",
               "crossComponentResources": [ "{Subscriptions}" ],
               "visualization": "piechart"
             },
+            "customWidth": "25",
             "name": "chart-os"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend agentVersion = tostring(properties.agentVersion)\n| extend agentVersion = iff(isempty(agentVersion), 'unknown', agentVersion)\n| summarize count() by agentVersion\n| order by count_ desc",
+              "size": 3,
+              "title": "Arc agent version (drift)",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "25",
+            "name": "chart-agent-version"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| summarize count() by location\n| order by count_ desc",
+              "size": 3,
+              "title": "Machines by region",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "25",
+            "name": "chart-region"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend mid = tolower(id)\n| project mid\n| join kind=leftouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines/extensions'\n    | where name in~ ('AzureMonitorWindowsAgent','AzureMonitorLinuxAgent')\n    | extend mid = tolower(tostring(split(id, '/extensions/')[0]))\n    | summarize HasAMA = count() by mid\n) on mid\n| extend AMA = iff(isnotnull(HasAMA) and HasAMA > 0, 'Installed', 'Missing')\n| summarize count() by AMA",
+              "size": 3,
+              "title": "AMA coverage",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "Installed", "color": "green" },
+                  { "seriesName": "Missing",   "color": "redBright" }
+                ]
+              }
+            },
+            "customWidth": "25",
+            "name": "chart-ama-coverage"
           },
           {
             "type": 3,
