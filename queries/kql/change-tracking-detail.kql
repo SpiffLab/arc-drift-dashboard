@@ -3,6 +3,6 @@ ConfigurationChange
 | where TimeGenerated {TimeRange}
 | project TimeGenerated, Computer, ConfigChangeType, ChangeCategory,
           FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState,
-          FileSystemPath, Size, Sha256, SoftwareName, Previous, Current,
+          FileSystemPath, Size, FileContentChecksum, SoftwareName, Publisher, Previous, Current,
           RegistryKey, ValueName, ValueData
 | order by TimeGenerated desc

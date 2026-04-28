@@ -428,7 +428,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| project TimeGenerated, Computer, ConfigChangeType, ChangeCategory, FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState, FileSystemPath, Size, Sha256, SoftwareName, Previous, Current, RegistryKey, ValueName, ValueData, _ResourceId\n| order by TimeGenerated desc",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| project TimeGenerated, Computer, ConfigChangeType, ChangeCategory, FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState, FileSystemPath, Size, FileContentChecksum, SoftwareName, Publisher, Previous, Current, RegistryKey, ValueName, ValueData, _ResourceId\n| order by TimeGenerated desc",
               "size": 0,
               "title": "Change Tracking — detail (click a row to open the raw event in Logs)",
               "queryType": 0,
