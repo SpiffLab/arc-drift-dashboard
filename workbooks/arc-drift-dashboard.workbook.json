@@ -161,6 +161,14 @@
             "style": "link"
           },
           {
+            "id": "appconfig",
+            "cellValue": "tab",
+            "linkTarget": "parameter",
+            "linkLabel": "App Config",
+            "subTarget": "appconfig",
+            "style": "link"
+          },
+          {
             "id": "inventory",
             "cellValue": "tab",
             "linkTarget": "parameter",
@@ -1373,6 +1381,141 @@
         "value": "changes"
       },
       "name": "group-changes"
+    },
+    {
+      "type": 12,
+      "content": {
+        "version": "NotebookGroup/1.0",
+        "groupType": "editable",
+        "items": [
+          {
+            "type": 1,
+            "content": {
+              "json": "## Application configuration drift (in-OS)\n\nThis tab classifies in-OS Change Tracking signals (file edits, registry edits, service/daemon definition changes) into **application categories** so you can spot drift in things like web-server configs, database configs, container runtimes, SSH/auth, scheduled jobs, and app settings files.\n\n> **Coverage note.** Only paths/keys included in your **Change Tracking DCR** are recorded. If a category looks empty, your DCR likely doesn't include those paths. Add them to the DCR's `dataSources.extensions` block (Linux: `fileSettings.fileSpecifications`, Windows: `fileSettings` and `registrySettings`)."
+            },
+            "name": "appconfig-help"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(coalesce(FileSystemPath, RegistryKey, SvcName, ''))\n| extend AppCategory = case(\n    pathLower has_any ('nginx','apache2','/httpd','httpd.conf','applicationhost.config','web.config','tomcat','jboss','wildfly'), 'Web server',\n    pathLower has_any ('postgresql.conf','pg_hba','/etc/mysql','my.cnf','mongod','redis.conf','mssql','mariadb','elasticsearch.yml'), 'Database',\n    pathLower has_any ('php.ini','machine.config','/etc/java','jvm.options','python','/etc/node','npmrc'), 'Runtime',\n    pathLower has_any ('docker','/etc/kubernetes','kubelet','containerd','crio','podman'), 'Container / orchestration',\n    pathLower has_any ('sshd_config','/etc/sssd','/etc/pam','krb5.conf','/etc/samba','/etc/security'), 'Auth / identity',\n    pathLower has_any ('/etc/systemd','\\\\system32\\\\tasks\\\\','/etc/init','/etc/rc','svchost'), 'Init / scheduled tasks',\n    pathLower has_any ('appsettings.json','application.properties','application.yml','application.yaml','.env'), 'App settings',\n    pathLower has_any ('/etc/cron','/var/spool/cron','/etc/at.allow','/etc/at.deny'), 'Scheduling (cron / at)',\n    pathLower has_any ('rsyslog','syslog-ng','/etc/logrotate','/etc/audit','eventlog'), 'Logging / audit',\n    pathLower has_any ('iptables','/etc/ufw','nftables','firewalld','firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| summarize count() by AppCategory",
+              "size": 3,
+              "title": "App config changes by category",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-appconfig-category"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend target = coalesce(FileSystemPath, RegistryKey, SvcName, '')\n| where isnotempty(target)\n| extend pathLower = tolower(target)\n| where pathLower has_any ('nginx','apache','httpd','applicationhost.config','web.config','postgresql.conf','my.cnf','mongod','redis.conf','mssql','sshd_config','/etc/sssd','/etc/pam','docker','kubernetes','containerd','/etc/systemd','/etc/cron','rsyslog','syslog-ng','/etc/logrotate','iptables','firewalld','appsettings.json','application.properties','php.ini','machine.config')\n| summarize count() by target\n| top 10 by count_",
+              "size": 3,
+              "title": "Top noisy app config targets",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-appconfig-noisy"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationData\n| where ConfigDataType == 'Files'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(FileSystemPath)\n| where pathLower has_any ('nginx','apache','httpd','applicationhost.config','web.config','postgresql.conf','my.cnf','mongod','redis.conf','sshd_config','/etc/sssd','/etc/pam','docker','kubernetes','containerd','/etc/systemd','/etc/cron','rsyslog','syslog-ng','iptables','firewalld','appsettings.json','application.properties','php.ini','machine.config')\n| summarize machineCount = dcount(Computer), uniqueHashes = dcount(FileContentChecksum), hashes = make_set(FileContentChecksum, 10), machines = make_set(Computer, 10) by FileSystemPath\n| where machineCount > 1 and uniqueHashes > 1\n| extend driftScore = uniqueHashes\n| order by driftScore desc, machineCount desc",
+              "size": 0,
+              "title": "Fleet drift — same config file, different SHA256 across machines",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "showExportToExcel": true,
+              "gridSettings": {
+                "formatters": [
+                  { "columnMatch": "driftScore",   "formatter": 8, "formatOptions": { "min": 1, "palette": "redBright" } },
+                  { "columnMatch": "uniqueHashes", "formatter": 8, "formatOptions": { "min": 1, "palette": "orange" } },
+                  { "columnMatch": "machineCount", "formatter": 4 }
+                ]
+              }
+            },
+            "name": "table-appconfig-fleet-drift"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend target = coalesce(FileSystemPath, RegistryKey, SvcName, '')\n| where isnotempty(target)\n| extend pathLower = tolower(target)\n| extend AppCategory = case(\n    pathLower has_any ('nginx','apache2','/httpd','httpd.conf','applicationhost.config','web.config','tomcat','jboss','wildfly'), 'Web server',\n    pathLower has_any ('postgresql.conf','pg_hba','/etc/mysql','my.cnf','mongod','redis.conf','mssql','mariadb','elasticsearch.yml'), 'Database',\n    pathLower has_any ('php.ini','machine.config','/etc/java','jvm.options','python','/etc/node','npmrc'), 'Runtime',\n    pathLower has_any ('docker','/etc/kubernetes','kubelet','containerd','crio','podman'), 'Container / orchestration',\n    pathLower has_any ('sshd_config','/etc/sssd','/etc/pam','krb5.conf','/etc/samba','/etc/security'), 'Auth / identity',\n    pathLower has_any ('/etc/systemd','\\\\system32\\\\tasks\\\\','/etc/init','/etc/rc','svchost'), 'Init / scheduled tasks',\n    pathLower has_any ('appsettings.json','application.properties','application.yml','application.yaml','.env'), 'App settings',\n    pathLower has_any ('/etc/cron','/var/spool/cron','/etc/at.allow','/etc/at.deny'), 'Scheduling (cron / at)',\n    pathLower has_any ('rsyslog','syslog-ng','/etc/logrotate','/etc/audit','eventlog'), 'Logging / audit',\n    pathLower has_any ('iptables','/etc/ufw','nftables','firewalld','firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| project TimeGenerated, Computer, AppCategory, ConfigChangeType, target, ChangeCategory, FieldsChanged, Previous, Current, ValueData, SvcState, SvcPreviousState, FileContentChecksum, _ResourceId\n| order by TimeGenerated desc",
+              "size": 0,
+              "title": "Recent application config changes (file / registry / service)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "showExportToExcel": true,
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "TimeGenerated",
+                    "formatter": 7,
+                    "formatOptions": {
+                      "linkTarget": "OpenBlade",
+                      "linkIsContextBlade": false,
+                      "bladeOpenContext": {
+                        "bladeName": "LogsBlade",
+                        "extensionName": "Microsoft_OperationsManagementSuite_Workspace",
+                        "bladeParameters": [
+                          { "name": "resourceId", "source": "static", "value": "{LogAnalyticsWorkspace}" },
+                          { "name": "query",      "source": "static", "value": "ConfigurationChange\n| where TimeGenerated == datetime('${TimeGenerated}')\n| where Computer == '${Computer}'" }
+                        ]
+                      }
+                    }
+                  },
+                  { "columnMatch": "AppCategory", "formatter": 4, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
+                      { "operator": "==", "thresholdValue": "Web server",                "representation": "blue",      "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Database",                  "representation": "purple",    "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Runtime",                   "representation": "yellow",    "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Container / orchestration", "representation": "lightBlue", "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Auth / identity",           "representation": "redBright", "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Init / scheduled tasks",    "representation": "orange",    "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "App settings",              "representation": "green",     "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Scheduling (cron / at)",    "representation": "orange",    "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Logging / audit",           "representation": "gray",      "text": "{0}" },
+                      { "operator": "==", "thresholdValue": "Firewall / network",        "representation": "redBright", "text": "{0}" },
+                      { "operator": "Default",                                            "representation": "gray",      "text": "{0}" }
+                    ] } }
+                ]
+              }
+            },
+            "name": "table-appconfig-changes"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationData\n| where ConfigDataType == 'Files'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(FileSystemPath)\n| extend AppCategory = case(\n    pathLower has_any ('nginx','apache2','/httpd','httpd.conf','applicationhost.config','web.config','tomcat','jboss','wildfly'), 'Web server',\n    pathLower has_any ('postgresql.conf','pg_hba','/etc/mysql','my.cnf','mongod','redis.conf','mssql','mariadb','elasticsearch.yml'), 'Database',\n    pathLower has_any ('php.ini','machine.config','/etc/java','jvm.options','python','/etc/node','npmrc'), 'Runtime',\n    pathLower has_any ('docker','/etc/kubernetes','kubelet','containerd','crio','podman'), 'Container / orchestration',\n    pathLower has_any ('sshd_config','/etc/sssd','/etc/pam','krb5.conf','/etc/samba','/etc/security'), 'Auth / identity',\n    pathLower has_any ('/etc/systemd','\\\\system32\\\\tasks\\\\','/etc/init','/etc/rc','svchost'), 'Init / scheduled tasks',\n    pathLower has_any ('appsettings.json','application.properties','application.yml','application.yaml','.env'), 'App settings',\n    pathLower has_any ('/etc/cron','/var/spool/cron','/etc/at.allow','/etc/at.deny'), 'Scheduling (cron / at)',\n    pathLower has_any ('rsyslog','syslog-ng','/etc/logrotate','/etc/audit','eventlog'), 'Logging / audit',\n    pathLower has_any ('iptables','/etc/ufw','nftables','firewalld','firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| summarize tracked = dcount(FileSystemPath), files = dcount(strcat(Computer,'|',FileSystemPath)) by AppCategory\n| order by files desc",
+              "size": 0,
+              "title": "Coverage — distinct app config paths/files currently being inventoried by Change Tracking",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "gridSettings": {
+                "formatters": [
+                  { "columnMatch": "tracked", "formatter": 8, "formatOptions": { "min": 0, "palette": "green" } },
+                  { "columnMatch": "files",   "formatter": 8, "formatOptions": { "min": 0, "palette": "blue" } }
+                ]
+              }
+            },
+            "name": "table-appconfig-coverage"
+          }
+        ]
+      },
+      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "appconfig" },
+      "name": "group-appconfig"
     },
     {
       "type": 12,
