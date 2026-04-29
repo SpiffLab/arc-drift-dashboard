@@ -1,1 +1,0 @@
-patchassessmentresources | where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches' | extend classification = tostring(properties.classifications) | extend classification = replace_regex(classification, @'[\[\]"]', '') | extend classification = iff(isempty(classification), 'Other', classification) | summarize count() by classification
