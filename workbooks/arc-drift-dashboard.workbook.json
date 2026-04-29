@@ -783,7 +783,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| where '{OSFilter}' == 'All' or tostring(properties.osType) =~ '{OSFilter}'\n| extend tagKeys = bag_keys(tags)\n| extend hasEnvironment    = array_index_of(tagKeys, 'environment')        >= 0,\n         hasOwner          = array_index_of(tagKeys, 'owner')              >= 0,\n         hasCostCenter     = array_index_of(tagKeys, 'costCenter')         >= 0,\n         hasDataClassification = array_index_of(tagKeys, 'dataClassification') >= 0\n| extend missingCount = toint(not(hasEnvironment)) + toint(not(hasOwner)) + toint(not(hasCostCenter)) + toint(not(hasDataClassification))\n| where missingCount > 0\n| project name, resourceGroup, location, hasEnvironment, hasOwner, hasCostCenter, hasDataClassification, missingCount, tags\n| order by missingCount desc",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| where '{OSFilter}' == 'All' or tostring(properties.osType) =~ '{OSFilter}'\n| extend tagKeys = bag_keys(tags)\n| extend hasEnvironment        = array_index_of(tagKeys, 'environment')        >= 0 or array_index_of(tagKeys, 'Environment')        >= 0 or array_index_of(tagKeys, 'ENVIRONMENT')        >= 0,\n         hasOwner              = array_index_of(tagKeys, 'owner')              >= 0 or array_index_of(tagKeys, 'Owner')              >= 0 or array_index_of(tagKeys, 'OWNER')              >= 0,\n         hasCostCenter         = array_index_of(tagKeys, 'costCenter')         >= 0 or array_index_of(tagKeys, 'CostCenter')         >= 0 or array_index_of(tagKeys, 'costcenter')         >= 0 or array_index_of(tagKeys, 'cost-center')        >= 0,\n         hasDataClassification = array_index_of(tagKeys, 'dataClassification') >= 0 or array_index_of(tagKeys, 'DataClassification') >= 0 or array_index_of(tagKeys, 'dataclassification') >= 0 or array_index_of(tagKeys, 'data-classification') >= 0\n| extend missingCount = toint(not(hasEnvironment)) + toint(not(hasOwner)) + toint(not(hasCostCenter)) + toint(not(hasDataClassification))\n| where missingCount > 0\n| project name, resourceGroup, location, hasEnvironment, hasOwner, hasCostCenter, hasDataClassification, missingCount, tags\n| order by missingCount desc",
               "size": 0,
               "title": "Tag drift",
               "queryType": 1,
@@ -1064,7 +1064,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| lookup kind=leftouter _osMap on Computer\n| where _OSType =~ 'Windows'\n| summarize count() by ConfigChangeType",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| lookup kind=leftouter _osMap on _ResourceId\n| where _OSType =~ 'Windows'\n| summarize count() by ConfigChangeType",
               "size": 3,
               "title": "Windows changes by type (services / registry / files / software)",
               "queryType": 0,
@@ -1081,7 +1081,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| lookup kind=leftouter _osMap on Computer\n| where _OSType =~ 'Linux'\n| summarize count() by ConfigChangeType",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| lookup kind=leftouter _osMap on _ResourceId\n| where _OSType =~ 'Linux'\n| summarize count() by ConfigChangeType",
               "size": 3,
               "title": "Linux changes by type (daemons / files / software)",
               "queryType": 0,
@@ -1098,7 +1098,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| summarize count() by Computer\n| top 8 by count_",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| summarize count() by Computer\n| top 8 by count_",
               "size": 3,
               "title": "Top noisy machines (by change count)",
               "queryType": 0,
@@ -1115,7 +1115,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| summarize fileChanges=countif(ConfigChangeType=='Files'), registryChanges=countif(ConfigChangeType=='Registry'), serviceChanges=countif(ConfigChangeType=='WindowsServices'), softwareChanges=countif(ConfigChangeType=='Software'), daemonChanges=countif(ConfigChangeType=='Daemons'), total=count() by Computer\n| order by total desc",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| summarize fileChanges=countif(ConfigChangeType=='Files'), registryChanges=countif(ConfigChangeType=='Registry'), serviceChanges=countif(ConfigChangeType=='WindowsServices'), softwareChanges=countif(ConfigChangeType=='Software'), daemonChanges=countif(ConfigChangeType=='Daemons'), total=count() by Computer\n| order by total desc",
               "size": 0,
               "title": "Change Tracking — change counts by computer (click a row to drill in)",
               "queryType": 0,
@@ -1193,7 +1193,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| summarize count() by bin(TimeGenerated, 1h), ConfigChangeType\n| render timechart",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| summarize count() by bin(TimeGenerated, 1h), ConfigChangeType\n| render timechart",
               "size": 0,
               "title": "Change rate over time (filtered)",
               "queryType": 0,
@@ -1208,7 +1208,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| extend hour = datetime_part('hour', TimeGenerated), dow = dayofweek(TimeGenerated)\n| where hour < 8 or hour >= 18 or dow == 0d or dow == 6d\n| summarize AfterHoursChanges = count(), Last = max(TimeGenerated) by Computer, ConfigChangeType\n| order by AfterHoursChanges desc",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| extend hour = datetime_part('hour', TimeGenerated), dow = dayofweek(TimeGenerated)\n| where hour < 8 or hour >= 18 or dow == 0d or dow == 6d\n| summarize AfterHoursChanges = count(), Last = max(TimeGenerated) by Computer, ConfigChangeType\n| order by AfterHoursChanges desc",
               "size": 0,
               "title": "After-hours changes (outside 08:00–18:00 local-to-agent, or weekends)",
               "queryType": 0,
@@ -1251,7 +1251,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| extend\n    SensitiveFile = ConfigChangeType == 'Files' and (FileSystemPath has_any('/etc/passwd','/etc/shadow','/etc/sudoers','/etc/ssh/sshd_config','/etc/pam','/etc/cron','/etc/hosts','drivers\\\\etc\\\\hosts','applicationHost.config','\\\\System32\\\\Tasks\\\\')),\n    SensitiveReg = ConfigChangeType == 'Registry' and (RegistryKey has_any('Lsa','Winlogon','LanmanServer','Defender','CurrentVersion\\\\Run','RunOnce','Policies\\\\System')),\n    SensitiveSvc = ConfigChangeType == 'WindowsServices' and SvcName has_any('WinDefend','MpsSvc','Sense','EventLog','AzureMonitorAgent','himds','wuauserv'),\n    SensitiveDaemon = ConfigChangeType == 'Daemons' and SvcName has_any('sshd','auditd','firewalld','ufw','mdatp','azuremonitoragent','cron')\n| where SensitiveFile or SensitiveReg or SensitiveSvc or SensitiveDaemon\n| extend SensitiveCategory = case(SensitiveFile, 'File', SensitiveReg, 'Registry', SensitiveSvc, 'Service', SensitiveDaemon, 'Daemon', 'Other')\n| project TimeGenerated, Computer, SensitiveCategory, ConfigChangeType, FileSystemPath, RegistryKey, ValueName, SvcName, SvcState, SvcPreviousState, _ResourceId\n| order by TimeGenerated desc",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| extend\n    SensitiveFile = ConfigChangeType == 'Files' and ((FileSystemPath contains '/etc/passwd' or FileSystemPath contains '/etc/shadow' or FileSystemPath contains '/etc/sudoers' or FileSystemPath contains '/etc/ssh/sshd_config' or FileSystemPath contains '/etc/pam' or FileSystemPath contains '/etc/cron' or FileSystemPath contains '/etc/hosts' or FileSystemPath contains 'drivers\\\\etc\\\\hosts' or FileSystemPath contains 'applicationHost.config' or FileSystemPath contains '\\\\System32\\\\Tasks\\\\')),\n    SensitiveReg = ConfigChangeType == 'Registry' and ((RegistryKey contains 'Lsa' or RegistryKey contains 'Winlogon' or RegistryKey contains 'LanmanServer' or RegistryKey contains 'Defender' or RegistryKey contains 'CurrentVersion\\\\Run' or RegistryKey contains 'RunOnce' or RegistryKey contains 'Policies\\\\System')),\n    SensitiveSvc = ConfigChangeType == 'WindowsServices' and (SvcName contains 'WinDefend' or SvcName contains 'MpsSvc' or SvcName contains 'Sense' or SvcName contains 'EventLog' or SvcName contains 'AzureMonitorAgent' or SvcName contains 'himds' or SvcName contains 'wuauserv'),\n    SensitiveDaemon = ConfigChangeType == 'Daemons' and (SvcName contains 'sshd' or SvcName contains 'auditd' or SvcName contains 'firewalld' or SvcName contains 'ufw' or SvcName contains 'mdatp' or SvcName contains 'azuremonitoragent' or SvcName contains 'cron')\n| where SensitiveFile or SensitiveReg or SensitiveSvc or SensitiveDaemon\n| extend SensitiveCategory = case(SensitiveFile, 'File', SensitiveReg, 'Registry', SensitiveSvc, 'Service', SensitiveDaemon, 'Daemon', 'Other')\n| project TimeGenerated, Computer, SensitiveCategory, ConfigChangeType, FileSystemPath, RegistryKey, ValueName, SvcName, SvcState, SvcPreviousState, _ResourceId\n| order by TimeGenerated desc",
               "size": 0,
               "title": "Sensitive changes — privileged paths, security registry, security services/daemons",
               "queryType": 0,
@@ -1317,7 +1317,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| project TimeGenerated, Computer, ConfigChangeType, ChangeCategory, FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState, FileSystemPath, Size, FileContentChecksum, SoftwareName, Publisher, Previous, Current, RegistryKey, ValueName, ValueData, _ResourceId\n| order by TimeGenerated desc",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| project TimeGenerated, Computer, ConfigChangeType, ChangeCategory, FieldsChanged, SvcName, SvcDisplayName, SvcState, SvcPreviousState, FileSystemPath, Size, FileContentChecksum, SoftwareName, Publisher, Previous, Current, RegistryKey, ValueName, ValueData, _ResourceId\n| order by TimeGenerated desc",
               "size": 0,
               "title": "Change Tracking — detail (click a row to open the raw event in Logs)",
               "queryType": 0,
@@ -1399,12 +1399,14 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(coalesce(FileSystemPath, RegistryKey, SvcName, ''))\n| extend AppCategory = case(\n    pathLower has_any ('nginx','apache2','/httpd','httpd.conf','applicationhost.config','web.config','tomcat','jboss','wildfly'), 'Web server',\n    pathLower has_any ('postgresql.conf','pg_hba','/etc/mysql','my.cnf','mongod','redis.conf','mssql','mariadb','elasticsearch.yml'), 'Database',\n    pathLower has_any ('php.ini','machine.config','/etc/java','jvm.options','python','/etc/node','npmrc'), 'Runtime',\n    pathLower has_any ('docker','/etc/kubernetes','kubelet','containerd','crio','podman'), 'Container / orchestration',\n    pathLower has_any ('sshd_config','/etc/sssd','/etc/pam','krb5.conf','/etc/samba','/etc/security'), 'Auth / identity',\n    pathLower has_any ('/etc/systemd','\\\\system32\\\\tasks\\\\','/etc/init','/etc/rc','svchost'), 'Init / scheduled tasks',\n    pathLower has_any ('appsettings.json','application.properties','application.yml','application.yaml','.env'), 'App settings',\n    pathLower has_any ('/etc/cron','/var/spool/cron','/etc/at.allow','/etc/at.deny'), 'Scheduling (cron / at)',\n    pathLower has_any ('rsyslog','syslog-ng','/etc/logrotate','/etc/audit','eventlog'), 'Logging / audit',\n    pathLower has_any ('iptables','/etc/ufw','nftables','firewalld','firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| summarize count() by AppCategory",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(coalesce(FileSystemPath, RegistryKey, SvcName, ''))\n| extend AppCategory = case(\n    (pathLower contains 'nginx' or pathLower contains 'apache2' or pathLower contains '/httpd' or pathLower contains 'httpd.conf' or pathLower contains 'applicationhost.config' or pathLower contains 'web.config' or pathLower contains 'tomcat' or pathLower contains 'jboss' or pathLower contains 'wildfly'), 'Web server',\n    (pathLower contains 'postgresql.conf' or pathLower contains 'pg_hba' or pathLower contains '/etc/mysql' or pathLower contains 'my.cnf' or pathLower contains 'mongod' or pathLower contains 'redis.conf' or pathLower contains 'mssql' or pathLower contains 'mariadb' or pathLower contains 'elasticsearch.yml'), 'Database',\n    (pathLower contains 'php.ini' or pathLower contains 'machine.config' or pathLower contains '/etc/java' or pathLower contains 'jvm.options' or pathLower contains 'python' or pathLower contains '/etc/node' or pathLower contains 'npmrc'), 'Runtime',\n    (pathLower contains 'docker' or pathLower contains '/etc/kubernetes' or pathLower contains 'kubelet' or pathLower contains 'containerd' or pathLower contains 'crio' or pathLower contains 'podman'), 'Container / orchestration',\n    (pathLower contains 'sshd_config' or pathLower contains '/etc/sssd' or pathLower contains '/etc/pam' or pathLower contains 'krb5.conf' or pathLower contains '/etc/samba' or pathLower contains '/etc/security'), 'Auth / identity',\n    (pathLower contains '/etc/systemd' or pathLower contains '\\\\system32\\\\tasks\\\\' or pathLower contains '/etc/init' or pathLower contains '/etc/rc' or pathLower contains 'svchost'), 'Init / scheduled tasks',\n    (pathLower contains 'appsettings.json' or pathLower contains 'application.properties' or pathLower contains 'application.yml' or pathLower contains 'application.yaml' or pathLower contains '.env'), 'App settings',\n    (pathLower contains '/etc/cron' or pathLower contains '/var/spool/cron' or pathLower contains '/etc/at.allow' or pathLower contains '/etc/at.deny'), 'Scheduling (cron / at)',\n    (pathLower contains 'rsyslog' or pathLower contains 'syslog-ng' or pathLower contains '/etc/logrotate' or pathLower contains '/etc/audit' or pathLower contains 'eventlog'), 'Logging / audit',\n    (pathLower contains 'iptables' or pathLower contains '/etc/ufw' or pathLower contains 'nftables' or pathLower contains 'firewalld' or pathLower contains 'firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| summarize count() by AppCategory",
               "size": 3,
               "title": "App config changes by category",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "crossComponentResources": [
+                "{LogAnalyticsWorkspace}"
+              ],
               "visualization": "piechart"
             },
             "customWidth": "50",
@@ -1414,12 +1416,14 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend target = coalesce(FileSystemPath, RegistryKey, SvcName, '')\n| where isnotempty(target)\n| extend pathLower = tolower(target)\n| where pathLower has_any ('nginx','apache','httpd','applicationhost.config','web.config','postgresql.conf','my.cnf','mongod','redis.conf','mssql','sshd_config','/etc/sssd','/etc/pam','docker','kubernetes','containerd','/etc/systemd','/etc/cron','rsyslog','syslog-ng','/etc/logrotate','iptables','firewalld','appsettings.json','application.properties','php.ini','machine.config')\n| summarize count() by target\n| top 10 by count_",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend target = coalesce(FileSystemPath, RegistryKey, SvcName, '')\n| where isnotempty(target)\n| extend pathLower = tolower(target)\n| where (pathLower contains 'nginx' or pathLower contains 'apache' or pathLower contains 'httpd' or pathLower contains 'applicationhost.config' or pathLower contains 'web.config' or pathLower contains 'postgresql.conf' or pathLower contains 'my.cnf' or pathLower contains 'mongod' or pathLower contains 'redis.conf' or pathLower contains 'mssql' or pathLower contains 'sshd_config' or pathLower contains '/etc/sssd' or pathLower contains '/etc/pam' or pathLower contains 'docker' or pathLower contains 'kubernetes' or pathLower contains 'containerd' or pathLower contains '/etc/systemd' or pathLower contains '/etc/cron' or pathLower contains 'rsyslog' or pathLower contains 'syslog-ng' or pathLower contains '/etc/logrotate' or pathLower contains 'iptables' or pathLower contains 'firewalld' or pathLower contains 'appsettings.json' or pathLower contains 'application.properties' or pathLower contains 'php.ini' or pathLower contains 'machine.config')\n| summarize count() by target\n| top 10 by count_",
               "size": 3,
               "title": "Top noisy app config targets",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "crossComponentResources": [
+                "{LogAnalyticsWorkspace}"
+              ],
               "visualization": "piechart"
             },
             "customWidth": "50",
@@ -1429,18 +1433,37 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationData\n| where ConfigDataType == 'Files'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(FileSystemPath)\n| where pathLower has_any ('nginx','apache','httpd','applicationhost.config','web.config','postgresql.conf','my.cnf','mongod','redis.conf','sshd_config','/etc/sssd','/etc/pam','docker','kubernetes','containerd','/etc/systemd','/etc/cron','rsyslog','syslog-ng','iptables','firewalld','appsettings.json','application.properties','php.ini','machine.config')\n| summarize machineCount = dcount(Computer), uniqueHashes = dcount(FileContentChecksum), hashes = make_set(FileContentChecksum, 10), machines = make_set(Computer, 10) by FileSystemPath\n| where machineCount > 1 and uniqueHashes > 1\n| extend driftScore = uniqueHashes\n| order by driftScore desc, machineCount desc",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationData\n| where ConfigDataType == 'Files'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(FileSystemPath)\n| where (pathLower contains 'nginx' or pathLower contains 'apache' or pathLower contains 'httpd' or pathLower contains 'applicationhost.config' or pathLower contains 'web.config' or pathLower contains 'postgresql.conf' or pathLower contains 'my.cnf' or pathLower contains 'mongod' or pathLower contains 'redis.conf' or pathLower contains 'sshd_config' or pathLower contains '/etc/sssd' or pathLower contains '/etc/pam' or pathLower contains 'docker' or pathLower contains 'kubernetes' or pathLower contains 'containerd' or pathLower contains '/etc/systemd' or pathLower contains '/etc/cron' or pathLower contains 'rsyslog' or pathLower contains 'syslog-ng' or pathLower contains 'iptables' or pathLower contains 'firewalld' or pathLower contains 'appsettings.json' or pathLower contains 'application.properties' or pathLower contains 'php.ini' or pathLower contains 'machine.config')\n// fleet-drift-latest: collapse to latest hash per (Computer, FileSystemPath) before comparing\n| summarize arg_max(TimeGenerated, FileContentChecksum) by Computer, FileSystemPath\n| where isnotempty(FileContentChecksum)\n| summarize machineCount = dcount(Computer), uniqueHashes = dcount(FileContentChecksum), hashes = make_set(FileContentChecksum, 10), machines = make_set(Computer, 10) by FileSystemPath\n| where machineCount > 1 and uniqueHashes > 1\n| extend driftScore = uniqueHashes\n| order by driftScore desc, machineCount desc",
               "size": 0,
               "title": "Fleet drift — same config file, different SHA256 across machines",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "crossComponentResources": [
+                "{LogAnalyticsWorkspace}"
+              ],
               "showExportToExcel": true,
               "gridSettings": {
                 "formatters": [
-                  { "columnMatch": "driftScore",   "formatter": 8, "formatOptions": { "min": 1, "palette": "redBright" } },
-                  { "columnMatch": "uniqueHashes", "formatter": 8, "formatOptions": { "min": 1, "palette": "orange" } },
-                  { "columnMatch": "machineCount", "formatter": 4 }
+                  {
+                    "columnMatch": "driftScore",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 1,
+                      "palette": "redBright"
+                    }
+                  },
+                  {
+                    "columnMatch": "uniqueHashes",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 1,
+                      "palette": "orange"
+                    }
+                  },
+                  {
+                    "columnMatch": "machineCount",
+                    "formatter": 4
+                  }
                 ]
               }
             },
@@ -1450,12 +1473,14 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend target = coalesce(FileSystemPath, RegistryKey, SvcName, '')\n| where isnotempty(target)\n| extend pathLower = tolower(target)\n| extend AppCategory = case(\n    pathLower has_any ('nginx','apache2','/httpd','httpd.conf','applicationhost.config','web.config','tomcat','jboss','wildfly'), 'Web server',\n    pathLower has_any ('postgresql.conf','pg_hba','/etc/mysql','my.cnf','mongod','redis.conf','mssql','mariadb','elasticsearch.yml'), 'Database',\n    pathLower has_any ('php.ini','machine.config','/etc/java','jvm.options','python','/etc/node','npmrc'), 'Runtime',\n    pathLower has_any ('docker','/etc/kubernetes','kubelet','containerd','crio','podman'), 'Container / orchestration',\n    pathLower has_any ('sshd_config','/etc/sssd','/etc/pam','krb5.conf','/etc/samba','/etc/security'), 'Auth / identity',\n    pathLower has_any ('/etc/systemd','\\\\system32\\\\tasks\\\\','/etc/init','/etc/rc','svchost'), 'Init / scheduled tasks',\n    pathLower has_any ('appsettings.json','application.properties','application.yml','application.yaml','.env'), 'App settings',\n    pathLower has_any ('/etc/cron','/var/spool/cron','/etc/at.allow','/etc/at.deny'), 'Scheduling (cron / at)',\n    pathLower has_any ('rsyslog','syslog-ng','/etc/logrotate','/etc/audit','eventlog'), 'Logging / audit',\n    pathLower has_any ('iptables','/etc/ufw','nftables','firewalld','firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| project TimeGenerated, Computer, AppCategory, ConfigChangeType, target, ChangeCategory, FieldsChanged, Previous, Current, ValueData, SvcState, SvcPreviousState, FileContentChecksum, _ResourceId\n| order by TimeGenerated desc",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationChange\n| where TimeGenerated {TimeRange}\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend target = coalesce(FileSystemPath, RegistryKey, SvcName, '')\n| where isnotempty(target)\n| extend pathLower = tolower(target)\n| extend AppCategory = case(\n    (pathLower contains 'nginx' or pathLower contains 'apache2' or pathLower contains '/httpd' or pathLower contains 'httpd.conf' or pathLower contains 'applicationhost.config' or pathLower contains 'web.config' or pathLower contains 'tomcat' or pathLower contains 'jboss' or pathLower contains 'wildfly'), 'Web server',\n    (pathLower contains 'postgresql.conf' or pathLower contains 'pg_hba' or pathLower contains '/etc/mysql' or pathLower contains 'my.cnf' or pathLower contains 'mongod' or pathLower contains 'redis.conf' or pathLower contains 'mssql' or pathLower contains 'mariadb' or pathLower contains 'elasticsearch.yml'), 'Database',\n    (pathLower contains 'php.ini' or pathLower contains 'machine.config' or pathLower contains '/etc/java' or pathLower contains 'jvm.options' or pathLower contains 'python' or pathLower contains '/etc/node' or pathLower contains 'npmrc'), 'Runtime',\n    (pathLower contains 'docker' or pathLower contains '/etc/kubernetes' or pathLower contains 'kubelet' or pathLower contains 'containerd' or pathLower contains 'crio' or pathLower contains 'podman'), 'Container / orchestration',\n    (pathLower contains 'sshd_config' or pathLower contains '/etc/sssd' or pathLower contains '/etc/pam' or pathLower contains 'krb5.conf' or pathLower contains '/etc/samba' or pathLower contains '/etc/security'), 'Auth / identity',\n    (pathLower contains '/etc/systemd' or pathLower contains '\\\\system32\\\\tasks\\\\' or pathLower contains '/etc/init' or pathLower contains '/etc/rc' or pathLower contains 'svchost'), 'Init / scheduled tasks',\n    (pathLower contains 'appsettings.json' or pathLower contains 'application.properties' or pathLower contains 'application.yml' or pathLower contains 'application.yaml' or pathLower contains '.env'), 'App settings',\n    (pathLower contains '/etc/cron' or pathLower contains '/var/spool/cron' or pathLower contains '/etc/at.allow' or pathLower contains '/etc/at.deny'), 'Scheduling (cron / at)',\n    (pathLower contains 'rsyslog' or pathLower contains 'syslog-ng' or pathLower contains '/etc/logrotate' or pathLower contains '/etc/audit' or pathLower contains 'eventlog'), 'Logging / audit',\n    (pathLower contains 'iptables' or pathLower contains '/etc/ufw' or pathLower contains 'nftables' or pathLower contains 'firewalld' or pathLower contains 'firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| project TimeGenerated, Computer, AppCategory, ConfigChangeType, target, ChangeCategory, FieldsChanged, Previous, Current, ValueData, SvcState, SvcPreviousState, FileContentChecksum, _ResourceId\n| order by TimeGenerated desc",
               "size": 0,
               "title": "Recent application config changes (file / registry / service)",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "crossComponentResources": [
+                "{LogAnalyticsWorkspace}"
+              ],
               "showExportToExcel": true,
               "gridSettings": {
                 "formatters": [
@@ -1469,25 +1494,94 @@
                         "bladeName": "LogsBlade",
                         "extensionName": "Microsoft_OperationsManagementSuite_Workspace",
                         "bladeParameters": [
-                          { "name": "resourceId", "source": "static", "value": "{LogAnalyticsWorkspace}" },
-                          { "name": "query",      "source": "static", "value": "ConfigurationChange\n| where TimeGenerated == datetime('${TimeGenerated}')\n| where Computer == '${Computer}'" }
+                          {
+                            "name": "resourceId",
+                            "source": "static",
+                            "value": "{LogAnalyticsWorkspace}"
+                          },
+                          {
+                            "name": "query",
+                            "source": "static",
+                            "value": "ConfigurationChange\n| where TimeGenerated == datetime('${TimeGenerated}')\n| where Computer == '${Computer}'"
+                          }
                         ]
                       }
                     }
                   },
-                  { "columnMatch": "AppCategory", "formatter": 4, "formatOptions": { "thresholdsOptions": "colors", "thresholdsGrid": [
-                      { "operator": "==", "thresholdValue": "Web server",                "representation": "blue",      "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Database",                  "representation": "purple",    "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Runtime",                   "representation": "yellow",    "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Container / orchestration", "representation": "lightBlue", "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Auth / identity",           "representation": "redBright", "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Init / scheduled tasks",    "representation": "orange",    "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "App settings",              "representation": "green",     "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Scheduling (cron / at)",    "representation": "orange",    "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Logging / audit",           "representation": "gray",      "text": "{0}" },
-                      { "operator": "==", "thresholdValue": "Firewall / network",        "representation": "redBright", "text": "{0}" },
-                      { "operator": "Default",                                            "representation": "gray",      "text": "{0}" }
-                    ] } }
+                  {
+                    "columnMatch": "AppCategory",
+                    "formatter": 4,
+                    "formatOptions": {
+                      "thresholdsOptions": "colors",
+                      "thresholdsGrid": [
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Web server",
+                          "representation": "blue",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Database",
+                          "representation": "purple",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Runtime",
+                          "representation": "yellow",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Container / orchestration",
+                          "representation": "lightBlue",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Auth / identity",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Init / scheduled tasks",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "App settings",
+                          "representation": "green",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Scheduling (cron / at)",
+                          "representation": "orange",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Logging / audit",
+                          "representation": "gray",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "==",
+                          "thresholdValue": "Firewall / network",
+                          "representation": "redBright",
+                          "text": "{0}"
+                        },
+                        {
+                          "operator": "Default",
+                          "representation": "gray",
+                          "text": "{0}"
+                        }
+                      ]
+                    }
+                  }
                 ]
               }
             },
@@ -1497,16 +1591,32 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "let _osMap = Heartbeat | summarize arg_max(TimeGenerated, OSType) by Computer | project Computer, _OSType = OSType;\nConfigurationData\n| where ConfigDataType == 'Files'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(FileSystemPath)\n| extend AppCategory = case(\n    pathLower has_any ('nginx','apache2','/httpd','httpd.conf','applicationhost.config','web.config','tomcat','jboss','wildfly'), 'Web server',\n    pathLower has_any ('postgresql.conf','pg_hba','/etc/mysql','my.cnf','mongod','redis.conf','mssql','mariadb','elasticsearch.yml'), 'Database',\n    pathLower has_any ('php.ini','machine.config','/etc/java','jvm.options','python','/etc/node','npmrc'), 'Runtime',\n    pathLower has_any ('docker','/etc/kubernetes','kubelet','containerd','crio','podman'), 'Container / orchestration',\n    pathLower has_any ('sshd_config','/etc/sssd','/etc/pam','krb5.conf','/etc/samba','/etc/security'), 'Auth / identity',\n    pathLower has_any ('/etc/systemd','\\\\system32\\\\tasks\\\\','/etc/init','/etc/rc','svchost'), 'Init / scheduled tasks',\n    pathLower has_any ('appsettings.json','application.properties','application.yml','application.yaml','.env'), 'App settings',\n    pathLower has_any ('/etc/cron','/var/spool/cron','/etc/at.allow','/etc/at.deny'), 'Scheduling (cron / at)',\n    pathLower has_any ('rsyslog','syslog-ng','/etc/logrotate','/etc/audit','eventlog'), 'Logging / audit',\n    pathLower has_any ('iptables','/etc/ufw','nftables','firewalld','firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| summarize tracked = dcount(FileSystemPath), files = dcount(strcat(Computer,'|',FileSystemPath)) by AppCategory\n| order by files desc",
+              "query": "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\nConfigurationData\n| where ConfigDataType == 'Files'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend pathLower = tolower(FileSystemPath)\n| extend AppCategory = case(\n    (pathLower contains 'nginx' or pathLower contains 'apache2' or pathLower contains '/httpd' or pathLower contains 'httpd.conf' or pathLower contains 'applicationhost.config' or pathLower contains 'web.config' or pathLower contains 'tomcat' or pathLower contains 'jboss' or pathLower contains 'wildfly'), 'Web server',\n    (pathLower contains 'postgresql.conf' or pathLower contains 'pg_hba' or pathLower contains '/etc/mysql' or pathLower contains 'my.cnf' or pathLower contains 'mongod' or pathLower contains 'redis.conf' or pathLower contains 'mssql' or pathLower contains 'mariadb' or pathLower contains 'elasticsearch.yml'), 'Database',\n    (pathLower contains 'php.ini' or pathLower contains 'machine.config' or pathLower contains '/etc/java' or pathLower contains 'jvm.options' or pathLower contains 'python' or pathLower contains '/etc/node' or pathLower contains 'npmrc'), 'Runtime',\n    (pathLower contains 'docker' or pathLower contains '/etc/kubernetes' or pathLower contains 'kubelet' or pathLower contains 'containerd' or pathLower contains 'crio' or pathLower contains 'podman'), 'Container / orchestration',\n    (pathLower contains 'sshd_config' or pathLower contains '/etc/sssd' or pathLower contains '/etc/pam' or pathLower contains 'krb5.conf' or pathLower contains '/etc/samba' or pathLower contains '/etc/security'), 'Auth / identity',\n    (pathLower contains '/etc/systemd' or pathLower contains '\\\\system32\\\\tasks\\\\' or pathLower contains '/etc/init' or pathLower contains '/etc/rc' or pathLower contains 'svchost'), 'Init / scheduled tasks',\n    (pathLower contains 'appsettings.json' or pathLower contains 'application.properties' or pathLower contains 'application.yml' or pathLower contains 'application.yaml' or pathLower contains '.env'), 'App settings',\n    (pathLower contains '/etc/cron' or pathLower contains '/var/spool/cron' or pathLower contains '/etc/at.allow' or pathLower contains '/etc/at.deny'), 'Scheduling (cron / at)',\n    (pathLower contains 'rsyslog' or pathLower contains 'syslog-ng' or pathLower contains '/etc/logrotate' or pathLower contains '/etc/audit' or pathLower contains 'eventlog'), 'Logging / audit',\n    (pathLower contains 'iptables' or pathLower contains '/etc/ufw' or pathLower contains 'nftables' or pathLower contains 'firewalld' or pathLower contains 'firewallpolicy'), 'Firewall / network',\n    'Other')\n| where AppCategory != 'Other'\n| summarize tracked = dcount(FileSystemPath), files = dcount(strcat(Computer,'|',FileSystemPath)) by AppCategory\n| order by files desc",
               "size": 0,
               "title": "Coverage — distinct app config paths/files currently being inventoried by Change Tracking",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "crossComponentResources": [
+                "{LogAnalyticsWorkspace}"
+              ],
               "gridSettings": {
                 "formatters": [
-                  { "columnMatch": "tracked", "formatter": 8, "formatOptions": { "min": 0, "palette": "green" } },
-                  { "columnMatch": "files",   "formatter": 8, "formatOptions": { "min": 0, "palette": "blue" } }
+                  {
+                    "columnMatch": "tracked",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "green"
+                    }
+                  },
+                  {
+                    "columnMatch": "files",
+                    "formatter": 8,
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "blue"
+                    }
+                  }
                 ]
               }
             },
@@ -1514,7 +1624,11 @@
           }
         ]
       },
-      "conditionalVisibility": { "parameterName": "tab", "comparison": "isEqualTo", "value": "appconfig" },
+      "conditionalVisibility": {
+        "parameterName": "tab",
+        "comparison": "isEqualTo",
+        "value": "appconfig"
+      },
       "name": "group-appconfig"
     },
     {
@@ -1592,7 +1706,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "ConfigurationData\n| where '{OSFilter}' == 'All' or OSType =~ '{OSFilter}'\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| summarize machines = make_set(Computer), machineCount = dcount(Computer) by SoftwareName, Publisher, CurrentVersion\n| extend totalMachines = toscalar(ConfigurationData | where ConfigDataType == 'Software' and TimeGenerated > ago(1d) | summarize dcount(Computer))\n| extend coverage = round(100.0 * machineCount / totalMachines, 1)\n| where coverage < 100 and coverage > 0\n| project SoftwareName, Publisher, CurrentVersion, machineCount, totalMachines, coverage, machines\n| order by coverage asc, SoftwareName asc",
+              "query": "ConfigurationData\n| where '{OSFilter}' == 'All' or OSType =~ '{OSFilter}'\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| summarize machines = make_set(Computer), machineCount = dcount(Computer) by SoftwareName, Publisher, CurrentVersion\n| extend totalMachines = toscalar(ConfigurationData | where '{OSFilter}' == 'All' or OSType =~ '{OSFilter}' | where ConfigDataType == 'Software' and TimeGenerated > ago(1d) | summarize dcount(Computer))\n| extend coverage = round(100.0 * machineCount / totalMachines, 1)\n| where coverage < 100 and coverage > 0\n| project SoftwareName, Publisher, CurrentVersion, machineCount, totalMachines, coverage, machines\n| order by coverage asc, SoftwareName asc",
               "size": 0,
               "title": "Software inventory — partial-coverage entries (potential drift)",
               "queryType": 0,
