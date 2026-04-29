@@ -188,13 +188,20 @@ const newItems = [
         "ConfigurationChange\n" +
         WINDOW_FILTER +
         OS_LOOKUP + NOISE_FILTER +
+        "| extend ChangeKind = case(\n" +
+        "    isnotempty(ConfigChangeType), tostring(ConfigChangeType),\n" +
+        "    isnotempty(SoftwareName), 'Software',\n" +
+        "    isnotempty(SvcName), 'Services',\n" +
+        "    isnotempty(FileSystemPath), 'Files',\n" +
+        "    isnotempty(RegistryKey), 'Registry',\n" +
+        "    'Other')\n" +
         "| summarize count() by bin(TimeGenerated, case(\n" +
         "    '{IncidentWindow}' in ('15m','1h'), 1m,\n" +
         "    '{IncidentWindow}' == '4h', 5m,\n" +
         "    '{IncidentWindow}' == '12h', 15m,\n" +
         "    '{IncidentWindow}' == '24h', 30m,\n" +
         "    '{IncidentWindow}' == '3d', 1h,\n" +
-        "    3h)), ConfigChangeType\n" +
+        "    3h)), ChangeKind\n" +
         "| render timechart",
       size: 0,
       title: "Change timeline — when did things start changing?",
