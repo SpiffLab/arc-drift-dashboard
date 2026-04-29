@@ -18,6 +18,17 @@ const wb = JSON.parse(fs.readFileSync(wbPath, 'utf8'));
 const OS_MAP = "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\n";
 const WINDOW_FILTER = "| where TimeGenerated between (({IncidentTime}) - {IncidentWindow} .. ({IncidentTime}))\n";
 const OS_LOOKUP = "| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n";
+// Universal noise filters applied to ConfigurationChange panels. The trailing
+// '~sentinel~' lets `!in` parse cleanly when the multi-select is empty.
+const NOISE_FILTER =
+  "| where ConfigChangeType !in~ ({ExcludeChangeTypes}, '~sentinel~')\n" +
+  "| where isempty(Publisher) or Publisher !in~ ({ExcludePublishers}, '~sentinel~')\n" +
+  "| where isempty('{ExcludePattern}') or not(tolower(coalesce(FileSystemPath, RegistryKey, SvcName, '')) matches regex tolower('{ExcludePattern}'))\n" +
+  "| where Computer !in~ ({ExcludeMachines}, '~sentinel~')\n";
+// Slimmer filter for ConfigurationData (no ConfigChangeType / Publisher / SvcName cols).
+const NOISE_FILTER_INVENTORY =
+  "| where isempty('{ExcludePattern}') or not(tolower(FileSystemPath) matches regex tolower('{ExcludePattern}'))\n" +
+  "| where Computer !in~ ({ExcludeMachines}, '~sentinel~')\n";
 
 const LOGS_LINK_FORMATTER = (kqlTemplate) => ({
   columnMatch: "TimeGenerated",
@@ -69,6 +80,61 @@ const newItems = [
           isRequired: true,
           typeSettings: { additionalResourceOptions: [] },
           jsonData: "[\n    {\"value\":\"15m\", \"label\":\"15 min\"},\n    {\"value\":\"1h\",  \"label\":\"1 hour\"},\n    {\"value\":\"4h\",  \"label\":\"4 hours\", \"selected\":true},\n    {\"value\":\"12h\", \"label\":\"12 hours\"},\n    {\"value\":\"24h\", \"label\":\"24 hours\"},\n    {\"value\":\"3d\",  \"label\":\"3 days\"},\n    {\"value\":\"7d\",  \"label\":\"7 days\"}\n]"
+        },
+        {
+          id: "appconfig-exclude-types",
+          version: "KqlParameterItem/1.0",
+          name: "ExcludeChangeTypes",
+          label: "Exclude change types",
+          type: 2,
+          multiSelect: true,
+          quote: "'",
+          delimiter: ",",
+          typeSettings: { additionalResourceOptions: [], showDefault: false },
+          jsonData: "[\n    {\"value\":\"Files\"},\n    {\"value\":\"Registry\"},\n    {\"value\":\"WindowsServices\"},\n    {\"value\":\"Daemons\"},\n    {\"value\":\"Software\"}\n]",
+          description: "Mute entire categories. Useful when one type drowns out the rest."
+        },
+        {
+          id: "appconfig-exclude-machines",
+          version: "KqlParameterItem/1.0",
+          name: "ExcludeMachines",
+          label: "Exclude machines",
+          type: 2,
+          multiSelect: true,
+          quote: "'",
+          delimiter: ",",
+          typeSettings: { additionalResourceOptions: [], showDefault: false },
+          query: "Heartbeat | where TimeGenerated > ago(7d) | summarize by Computer | order by Computer asc",
+          queryType: 0,
+          resourceType: "microsoft.operationalinsights/workspaces",
+          crossComponentResources: ["{LogAnalyticsWorkspace}"],
+          description: "Hide changes from specific machines (e.g. known-noisy build agents)."
+        },
+        {
+          id: "appconfig-exclude-publishers",
+          version: "KqlParameterItem/1.0",
+          name: "ExcludePublishers",
+          label: "Exclude publishers",
+          type: 2,
+          multiSelect: true,
+          quote: "'",
+          delimiter: ",",
+          typeSettings: { additionalResourceOptions: [], showDefault: false },
+          query: "ConfigurationChange | where TimeGenerated > ago(7d) | where ConfigChangeType == 'Software' | where isnotempty(Publisher) | summarize count() by Publisher | order by count_ desc | project Publisher",
+          queryType: 0,
+          resourceType: "microsoft.operationalinsights/workspaces",
+          crossComponentResources: ["{LogAnalyticsWorkspace}"],
+          description: "Mute software changes from specific publishers (e.g. routine OS / agent updates)."
+        },
+        {
+          id: "appconfig-exclude-pattern",
+          version: "KqlParameterItem/1.0",
+          name: "ExcludePattern",
+          label: "Exclude path/key/svc regex",
+          type: 1,
+          isRequired: false,
+          value: "",
+          description: "Case-insensitive regex applied to FileSystemPath / RegistryKey / SvcName. Example: /var/log|/tmp|\\\\\\\\Windows\\\\\\\\Temp"
         }
       ],
       style: "pills",
@@ -86,7 +152,7 @@ const newItems = [
       query: OS_MAP +
         "ConfigurationChange\n" +
         WINDOW_FILTER +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER +
         "| summarize\n" +
         "    Total = count(),\n" +
         "    Files = countif(ConfigChangeType == 'Files'),\n" +
@@ -117,7 +183,7 @@ const newItems = [
       query: OS_MAP +
         "ConfigurationChange\n" +
         WINDOW_FILTER +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER +
         "| summarize count() by bin(TimeGenerated, case(\n" +
         "    '{IncidentWindow}' in ('15m','1h'), 1m,\n" +
         "    '{IncidentWindow}' == '4h', 5m,\n" +
@@ -144,7 +210,7 @@ const newItems = [
       query: OS_MAP +
         "ConfigurationChange\n" +
         WINDOW_FILTER +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER +
         "| summarize Changes = count() by Computer\n" +
         "| order by Changes desc\n" +
         "| take 15",
@@ -168,7 +234,7 @@ const newItems = [
       query: OS_MAP +
         "ConfigurationChange\n" +
         WINDOW_FILTER +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER +
         "| where ConfigChangeType in ('WindowsServices','Daemons')\n" +
         "| where SvcState != SvcPreviousState or SvcStartupType != SvcPreviousStartupType\n" +
         "| extend StateFlip = strcat(coalesce(SvcPreviousState,''), ' → ', coalesce(SvcState,''))\n" +
@@ -213,7 +279,7 @@ const newItems = [
       query: OS_MAP +
         "ConfigurationChange\n" +
         WINDOW_FILTER +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER +
         "| where ConfigChangeType == 'Software'\n" +
         "| extend VersionFlip = case(\n" +
         "    ChangeCategory == 'Added', strcat('+ ', Current),\n" +
@@ -260,7 +326,7 @@ const newItems = [
       query: OS_MAP +
         "ConfigurationChange\n" +
         WINDOW_FILTER +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER +
         "| where ConfigChangeType == 'Files'\n" +
         "| extend SizeChange = iif(isnotnull(Size), tostring(Size), '')\n" +
         "| project TimeGenerated, Computer, ChangeCategory, FileSystemPath, FieldsChanged, Previous, Current, SizeChange, FileContentChecksum, _ResourceId\n" +
@@ -304,7 +370,7 @@ const newItems = [
       query: OS_MAP +
         "ConfigurationChange\n" +
         WINDOW_FILTER +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER +
         "| where ConfigChangeType == 'Registry'\n" +
         "| project TimeGenerated, Computer, ChangeCategory, RegistryKey, ValueName, Previous, Current, ValueData, _ResourceId\n" +
         "| order by TimeGenerated desc",
@@ -355,7 +421,7 @@ const newItems = [
         "ConfigurationData\n" +
         "| where ConfigDataType == 'Files'\n" +
         "| where TimeGenerated > ago(1d)\n" +
-        OS_LOOKUP +
+        OS_LOOKUP + NOISE_FILTER_INVENTORY +
         "| summarize arg_max(TimeGenerated, FileContentChecksum) by Computer, FileSystemPath\n" +
         "| where isnotempty(FileContentChecksum)\n" +
         "| summarize machineCount = dcount(Computer), uniqueHashes = dcount(FileContentChecksum), hashes = make_set(FileContentChecksum, 10), machines = make_set(Computer, 10) by FileSystemPath\n" +
@@ -398,3 +464,4 @@ if (!updated) {
 
 fs.writeFileSync(wbPath, JSON.stringify(wb, null, 2) + '\n');
 console.log('App Config tab rewritten as incident-response surface.');
+
