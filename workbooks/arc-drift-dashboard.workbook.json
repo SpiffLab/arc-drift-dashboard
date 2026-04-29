@@ -290,7 +290,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "guestconfigurationresources\n| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'\n| extend machineId = tolower(tostring(split(id, '/providers/microsoft.guestconfiguration')[0])), assignment = name, compliance = tostring(properties.complianceStatus), lastCompliance = todatetime(properties.lastComplianceStatusChecked), configurationName = tostring(properties.guestConfiguration.name)\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' | project machineId = tolower(id), machineName = name, resourceGroup) on machineId\n| project machineName, resourceGroup, configurationName, assignment, compliance, lastCompliance\n| order by compliance asc, lastCompliance asc",
+              "query": "guestconfigurationresources\n| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'\n| extend machineId = tolower(tostring(split(tolower(id), '/providers/microsoft.guestconfiguration')[0])), assignment = name, compliance = tostring(properties.complianceStatus), lastCompliance = todatetime(properties.lastComplianceStatusChecked), configurationName = tostring(properties.guestConfiguration.name)\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' | project machineId = tolower(id), machineName = name, resourceGroup) on machineId\n| project machineName, resourceGroup, configurationName, assignment, compliance, lastCompliance\n| order by compliance asc, lastCompliance asc",
               "size": 0,
               "title": "Machine Configuration assignments — compliance",
               "queryType": 1,
