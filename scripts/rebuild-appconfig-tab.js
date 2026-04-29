@@ -18,17 +18,21 @@ const wb = JSON.parse(fs.readFileSync(wbPath, 'utf8'));
 const OS_MAP = "let _osMap = Heartbeat | where isnotempty(_ResourceId) | summarize arg_max(TimeGenerated, OSType) by _ResourceId | project _ResourceId, _OSType = OSType;\n";
 const WINDOW_FILTER = "| where TimeGenerated between (({IncidentTime}) - {IncidentWindow} .. ({IncidentTime}))\n";
 const OS_LOOKUP = "| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n";
-// Universal noise filters applied to ConfigurationChange panels. The trailing
-// '~sentinel~' lets `!in` parse cleanly when the multi-select is empty.
+// Universal noise filters applied to ConfigurationChange panels.
+// Uses dynamic([...]) + array_index_of so an empty multi-select substitutes
+// as `dynamic([])` (a valid empty array) instead of producing a stray comma.
+// For the regex pattern we use iif(isempty(...), '[^\\s\\S]', ...) so an
+// empty pattern resolves to a never-matching constant — KQL otherwise
+// rejects empty regex arguments at parse time even behind a short-circuit.
 const NOISE_FILTER =
-  "| where ConfigChangeType !in~ ({ExcludeChangeTypes}, '~sentinel~')\n" +
-  "| where isempty(Publisher) or Publisher !in~ ({ExcludePublishers}, '~sentinel~')\n" +
-  "| where isempty('{ExcludePattern}') or not(tolower(coalesce(FileSystemPath, RegistryKey, SvcName, '')) matches regex tolower('{ExcludePattern}'))\n" +
-  "| where Computer !in~ ({ExcludeMachines}, '~sentinel~')\n";
+  "| where array_index_of(dynamic([{ExcludeChangeTypes}]), tostring(ConfigChangeType)) == -1\n" +
+  "| where isempty(Publisher) or array_index_of(dynamic([{ExcludePublishers}]), tostring(Publisher)) == -1\n" +
+  "| where not(tolower(coalesce(FileSystemPath, RegistryKey, SvcName, '')) matches regex iif(isempty('{ExcludePattern}'), '[^\\\\s\\\\S]', tolower('{ExcludePattern}')))\n" +
+  "| where array_index_of(dynamic([{ExcludeMachines}]), tostring(Computer)) == -1\n";
 // Slimmer filter for ConfigurationData (no ConfigChangeType / Publisher / SvcName cols).
 const NOISE_FILTER_INVENTORY =
-  "| where isempty('{ExcludePattern}') or not(tolower(FileSystemPath) matches regex tolower('{ExcludePattern}'))\n" +
-  "| where Computer !in~ ({ExcludeMachines}, '~sentinel~')\n";
+  "| where not(tolower(FileSystemPath) matches regex iif(isempty('{ExcludePattern}'), '[^\\\\s\\\\S]', tolower('{ExcludePattern}')))\n" +
+  "| where array_index_of(dynamic([{ExcludeMachines}]), tostring(Computer)) == -1\n";
 
 const LOGS_LINK_FORMATTER = (kqlTemplate) => ({
   columnMatch: "TimeGenerated",
