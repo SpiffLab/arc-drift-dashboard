@@ -24,15 +24,21 @@ const OS_LOOKUP = "| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFi
 // For the regex pattern we use iif(isempty(...), '[^\\s\\S]', ...) so an
 // empty pattern resolves to a never-matching constant — KQL otherwise
 // rejects empty regex arguments at parse time even behind a short-circuit.
+// NOISE_FILTER applies the user-controlled exclusions and drops inventory
+// snapshot rows. ConfigurationChange logs every service / software / file /
+// registry item TWICE: once as a real change event (ConfigChangeType +
+// ChangeCategory populated, e.g. WindowsServices/Modified) and once as a
+// bare state snapshot with both fields empty. The snapshots double the row
+// count and make timelines unreadable, so we filter to actual change events.
+//
+// Empty multi-selects substitute to nothing, so we wrap each filter in
+// dynamic([{Param}]) to land on a valid empty array. For the regex pattern
+// we use iif(isempty(...), '[^\\s\\S]', ...) so an empty pattern resolves
+// to a never-matching constant — KQL otherwise rejects empty regex
+// arguments at parse time even behind a short-circuit.
 const NOISE_FILTER =
-  "| extend ChangeKind = case(\n" +
-  "    isnotempty(ConfigChangeType), tostring(ConfigChangeType),\n" +
-  "    isnotempty(SoftwareName), 'Software',\n" +
-  "    isnotempty(SvcName), 'Services',\n" +
-  "    isnotempty(FileSystemPath), 'Files',\n" +
-  "    isnotempty(RegistryKey), 'Registry',\n" +
-  "    'Other')\n" +
-  "| where array_index_of(dynamic([{ExcludeChangeTypes}]), ChangeKind) == -1\n" +
+  "| where isnotempty(ConfigChangeType)\n" +
+  "| where array_index_of(dynamic([{ExcludeChangeTypes}]), tostring(ConfigChangeType)) == -1\n" +
   "| where isempty(Publisher) or array_index_of(dynamic([{ExcludePublishers}]), tostring(Publisher)) == -1\n" +
   "| where not(tolower(coalesce(FileSystemPath, RegistryKey, SvcName, '')) matches regex iif(isempty('{ExcludePattern}'), '[^\\\\s\\\\S]', tolower('{ExcludePattern}')))\n" +
   "| where array_index_of(dynamic([{ExcludeMachines}]), tostring(Computer)) == -1\n";
@@ -102,7 +108,7 @@ const newItems = [
           quote: "'",
           delimiter: ",",
           typeSettings: { additionalResourceOptions: [], showDefault: false },
-          jsonData: "[\n    {\"value\":\"Files\"},\n    {\"value\":\"Registry\"},\n    {\"value\":\"WindowsServices\"},\n    {\"value\":\"Services\"},\n    {\"value\":\"Daemons\"},\n    {\"value\":\"Software\"},\n    {\"value\":\"Other\"}\n]",
+          jsonData: "[\n    {\"value\":\"Files\"},\n    {\"value\":\"Registry\"},\n    {\"value\":\"WindowsServices\"},\n    {\"value\":\"Daemons\"},\n    {\"value\":\"Software\"}\n]",
           description: "Mute entire categories. Useful when one type drowns out the rest."
         },
         {
@@ -201,7 +207,7 @@ const newItems = [
         "    '{IncidentWindow}' == '12h', 15m,\n" +
         "    '{IncidentWindow}' == '24h', 30m,\n" +
         "    '{IncidentWindow}' == '3d', 1h,\n" +
-        "    3h)), ChangeKind\n" +
+        "    3h)), ConfigChangeType\n" +
         "| render timechart",
       size: 0,
       title: "Change timeline — when did things start changing?",
