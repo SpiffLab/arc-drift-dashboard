@@ -505,7 +505,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend classification = tostring(properties.classifications)\n| extend classification = trim_start('[\"', trim_end('\"]', classification))\n| extend classification = iff(isempty(classification), 'Other', classification)\n| summarize count() by classification",
+              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend classification = tostring(properties.classifications)\n| extend classification = replace_regex(classification, @'[\\[\\]\"]', '')\n| extend classification = iff(isempty(classification), 'Other', classification)\n| summarize count() by classification",
               "size": 3,
               "title": "Pending patches by classification",
               "queryType": 1,
