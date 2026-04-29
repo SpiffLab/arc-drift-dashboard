@@ -25,7 +25,14 @@ const OS_LOOKUP = "| lookup kind=leftouter _osMap on _ResourceId\n| where '{OSFi
 // empty pattern resolves to a never-matching constant — KQL otherwise
 // rejects empty regex arguments at parse time even behind a short-circuit.
 const NOISE_FILTER =
-  "| where array_index_of(dynamic([{ExcludeChangeTypes}]), tostring(ConfigChangeType)) == -1\n" +
+  "| extend ChangeKind = case(\n" +
+  "    isnotempty(ConfigChangeType), tostring(ConfigChangeType),\n" +
+  "    isnotempty(SoftwareName), 'Software',\n" +
+  "    isnotempty(SvcName), 'Services',\n" +
+  "    isnotempty(FileSystemPath), 'Files',\n" +
+  "    isnotempty(RegistryKey), 'Registry',\n" +
+  "    'Other')\n" +
+  "| where array_index_of(dynamic([{ExcludeChangeTypes}]), ChangeKind) == -1\n" +
   "| where isempty(Publisher) or array_index_of(dynamic([{ExcludePublishers}]), tostring(Publisher)) == -1\n" +
   "| where not(tolower(coalesce(FileSystemPath, RegistryKey, SvcName, '')) matches regex iif(isempty('{ExcludePattern}'), '[^\\\\s\\\\S]', tolower('{ExcludePattern}')))\n" +
   "| where array_index_of(dynamic([{ExcludeMachines}]), tostring(Computer)) == -1\n";
@@ -95,7 +102,7 @@ const newItems = [
           quote: "'",
           delimiter: ",",
           typeSettings: { additionalResourceOptions: [], showDefault: false },
-          jsonData: "[\n    {\"value\":\"Files\"},\n    {\"value\":\"Registry\"},\n    {\"value\":\"WindowsServices\"},\n    {\"value\":\"Daemons\"},\n    {\"value\":\"Software\"}\n]",
+          jsonData: "[\n    {\"value\":\"Files\"},\n    {\"value\":\"Registry\"},\n    {\"value\":\"WindowsServices\"},\n    {\"value\":\"Services\"},\n    {\"value\":\"Daemons\"},\n    {\"value\":\"Software\"},\n    {\"value\":\"Other\"}\n]",
           description: "Mute entire categories. Useful when one type drowns out the rest."
         },
         {
@@ -188,13 +195,6 @@ const newItems = [
         "ConfigurationChange\n" +
         WINDOW_FILTER +
         OS_LOOKUP + NOISE_FILTER +
-        "| extend ChangeKind = case(\n" +
-        "    isnotempty(ConfigChangeType), tostring(ConfigChangeType),\n" +
-        "    isnotempty(SoftwareName), 'Software',\n" +
-        "    isnotempty(SvcName), 'Services',\n" +
-        "    isnotempty(FileSystemPath), 'Files',\n" +
-        "    isnotempty(RegistryKey), 'Registry',\n" +
-        "    'Other')\n" +
         "| summarize count() by bin(TimeGenerated, case(\n" +
         "    '{IncidentWindow}' in ('15m','1h'), 1m,\n" +
         "    '{IncidentWindow}' == '4h', 5m,\n" +
