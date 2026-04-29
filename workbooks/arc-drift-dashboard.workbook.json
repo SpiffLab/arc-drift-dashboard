@@ -251,6 +251,42 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
+              "query": "policyresources\n| where type == 'microsoft.policyinsights/policystates'\n| where tolower(tostring(properties.resourceType)) startswith 'microsoft.hybridcompute/machines'\n| extend state = tostring(properties.complianceState)\n| where state in ('Compliant', 'NonCompliant')\n| summarize count() by state",
+              "size": 3,
+              "title": "Policy compliance — Arc machines",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "Compliant",    "color": "green" },
+                  { "seriesName": "NonCompliant", "color": "redBright" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-policy-compliance"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "policyresources\n| where type == 'microsoft.policyinsights/policystates'\n| where properties.complianceState == 'NonCompliant'\n| where tolower(tostring(properties.resourceType)) startswith 'microsoft.hybridcompute/machines'\n| extend def = tostring(properties.policyDefinitionName)\n| summarize count() by def\n| top 8 by count_",
+              "size": 3,
+              "title": "Top failing policy definitions",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-policy-top-failing"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
               "query": "policyresources\n| where type == 'microsoft.policyinsights/policystates'\n| where tolower(tostring(properties.resourceType)) startswith 'microsoft.hybridcompute/machines'\n| summarize Compliant = countif(properties.complianceState == 'Compliant'),\n            NonCompliant = countif(properties.complianceState == 'NonCompliant')",
               "size": 4,
               "title": "Policy state — Arc machines",
@@ -286,6 +322,57 @@
         "version": "NotebookGroup/1.0",
         "groupType": "editable",
         "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "guestconfigurationresources\n| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'\n| extend status = tostring(properties.complianceStatus)\n| where status in ('Compliant','NonCompliant')\n| summarize count() by status",
+              "size": 3,
+              "title": "Assignment compliance",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "Compliant",    "color": "green" },
+                  { "seriesName": "NonCompliant", "color": "redBright" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-guestcfg-compliance"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "guestconfigurationresources\n| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'\n| where tostring(properties.complianceStatus) == 'NonCompliant'\n| extend configurationName = tostring(properties.guestConfiguration.name)\n| where isnotempty(configurationName)\n| summarize count() by configurationName\n| top 10 by count_",
+              "size": 3,
+              "title": "Top non-compliant baselines",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-guestcfg-top-baselines"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "guestconfigurationresources\n| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'\n| extend machineName = tostring(split(tolower(id), '/machines/')[1])\n| extend machineName = tostring(split(machineName, '/')[0])\n| extend status = tostring(properties.complianceStatus)\n| where status == 'NonCompliant' and isnotempty(machineName)\n| summarize count() by machineName\n| top 10 by count_",
+              "size": 3,
+              "title": "Top non-compliant machines",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-guestcfg-top-machines"
+          },
           {
             "type": 3,
             "content": {
@@ -330,6 +417,43 @@
             "type": 1,
             "content": { "json": "Edit the `requiredExtensions` and `requiredTags` arrays in the queries to match your baseline." },
             "name": "extensions-help"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines/extensions'\n| extend state = tostring(properties.provisioningState)\n| extend state = iff(isempty(state), 'Unknown', state)\n| summarize count() by state",
+              "size": 3,
+              "title": "Extension provisioning state",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "Succeeded", "color": "green" },
+                  { "seriesName": "Failed",    "color": "redBright" },
+                  { "seriesName": "Creating",  "color": "yellow" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-extension-state"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "resources\n| where type =~ 'microsoft.hybridcompute/machines'\n| extend machineId = tolower(id), osType = tostring(properties.osType)\n| join kind=leftouter (\n    resources\n    | where type =~ 'microsoft.hybridcompute/machines/extensions'\n    | extend machineId = tolower(tostring(split(id, '/extensions/')[0]))\n    | summarize installed = make_set(name) by machineId\n) on machineId\n| extend installed = iff(isnull(installed), dynamic([]), installed)\n| extend\n    AMA = iff((osType =~ 'windows' and array_index_of(installed,'AzureMonitorWindowsAgent') >= 0) or (osType =~ 'linux' and array_index_of(installed,'AzureMonitorLinuxAgent') >= 0), 0, 1),\n    ChangeTracking = iff((osType =~ 'windows' and array_index_of(installed,'ChangeTracking-Windows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'ChangeTracking-Linux') >= 0), 0, 1),\n    Defender = iff((osType =~ 'windows' and array_index_of(installed,'MDE.Windows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'MDE.Linux') >= 0), 0, 1),\n    AzurePolicy = iff((osType =~ 'windows' and array_index_of(installed,'AzurePolicyforWindows') >= 0) or (osType =~ 'linux' and array_index_of(installed,'AzurePolicyforLinux') >= 0), 0, 1)\n| summarize AMA = sum(AMA), ChangeTracking = sum(ChangeTracking), Defender = sum(Defender), AzurePolicy = sum(AzurePolicy)\n| project Extension = pack_array('AMA','ChangeTracking','Defender','AzurePolicy'), MissingFrom = pack_array(AMA, ChangeTracking, Defender, AzurePolicy)\n| mv-expand Extension to typeof(string), MissingFrom to typeof(int)\n| where MissingFrom > 0",
+              "size": 3,
+              "title": "Most-missing required extensions (machines lacking each)",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-extension-missing"
           },
           {
             "type": 3,
@@ -381,6 +505,45 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
+              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend classification = tostring(properties.classifications)\n| extend classification = trim_start('[\"', trim_end('\"]', classification))\n| extend classification = iff(isempty(classification), 'Other', classification)\n| summarize count() by classification",
+              "size": 3,
+              "title": "Pending patches by classification",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-updates-classification"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend severity = tostring(properties.msrcSeverity)\n| extend severity = iff(isempty(severity), 'Unrated', severity)\n| summarize count() by severity",
+              "size": 3,
+              "title": "Pending patches by MSRC severity",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "Critical",  "color": "redBright" },
+                  { "seriesName": "Important", "color": "orange" },
+                  { "seriesName": "Moderate",  "color": "yellow" },
+                  { "seriesName": "Low",       "color": "green" },
+                  { "seriesName": "Unrated",   "color": "gray" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-updates-severity"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
               "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend machineId = tolower(tostring(split(id, '/providers/microsoft.hybridcompute/machines/')[1]))\n| extend machineName = tostring(split(machineId, '/')[0])\n| extend classification = tostring(properties.classifications), severity = tostring(properties.msrcSeverity), publishedDate = todatetime(properties.publishedDate)\n| summarize pending = count(), critical = countif(severity =~ 'Critical'), security = countif(classification has 'Security'), oldest = min(publishedDate) by machineName\n| order by critical desc, pending desc",
               "size": 0,
               "title": "Pending updates per machine",
@@ -401,6 +564,43 @@
         "version": "NotebookGroup/1.0",
         "groupType": "editable",
         "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend status = tostring(properties.status.code), severity = tostring(properties.metadata.severity), resourceId = tostring(properties.resourceDetails.Id)\n| where status == 'Unhealthy'\n| where tolower(resourceId) contains '/microsoft.hybridcompute/machines/'\n| extend severity = iff(isempty(severity), 'Unknown', severity)\n| summarize count() by severity",
+              "size": 3,
+              "title": "Open recommendations by severity",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "High",   "color": "redBright" },
+                  { "seriesName": "Medium", "color": "orange" },
+                  { "seriesName": "Low",    "color": "yellow" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-defender-severity"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "securityresources\n| where type == 'microsoft.security/assessments'\n| extend status = tostring(properties.status.code), displayName = tostring(properties.displayName), resourceId = tostring(properties.resourceDetails.Id)\n| where status == 'Unhealthy'\n| where tolower(resourceId) contains '/microsoft.hybridcompute/machines/'\n| summarize count() by displayName\n| top 8 by count_",
+              "size": 3,
+              "title": "Top open recommendation categories",
+              "queryType": 1,
+              "resourceType": "microsoft.resourcegraph/resources",
+              "crossComponentResources": [ "{Subscriptions}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-defender-top"
+          },
           {
             "type": 3,
             "content": {
@@ -499,6 +699,36 @@
               ]
             },
             "name": "changes-drill-actions"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedComputer}' == '' or Computer == '{selectedComputer}'\n| summarize count() by ConfigChangeType",
+              "size": 3,
+              "title": "Changes by type",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-changes-bytype"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationChange\n| where TimeGenerated {TimeRange}\n| where '{selectedChangeType}' == '' or ConfigChangeType == '{selectedChangeType}'\n| summarize count() by Computer\n| top 8 by count_",
+              "size": 3,
+              "title": "Top noisy machines (by change count)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-changes-bymachine"
           },
           {
             "type": 3,
@@ -643,6 +873,43 @@
         "version": "NotebookGroup/1.0",
         "groupType": "editable",
         "items": [
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "ConfigurationData\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| extend Publisher = iff(isempty(Publisher), 'Unknown', Publisher)\n| summarize count() by Publisher\n| top 10 by count_",
+              "size": 3,
+              "title": "Software inventory by publisher (top 10)",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "visualization": "piechart"
+            },
+            "customWidth": "50",
+            "name": "chart-inventory-publishers"
+          },
+          {
+            "type": 3,
+            "content": {
+              "version": "KqlItem/1.0",
+              "query": "Heartbeat\n| where Category == 'Direct Agent' or Category == 'Azure Monitor Agent'\n| summarize lastHeartbeat = max(TimeGenerated) by Computer\n| extend Status = case(\n    datetime_diff('minute', now(), lastHeartbeat) > 60, 'Stale (>60 min)',\n    datetime_diff('minute', now(), lastHeartbeat) > 15, 'Lagging (15-60 min)',\n    'Healthy (<15 min)')\n| summarize count() by Status",
+              "size": 3,
+              "title": "Heartbeat freshness",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "crossComponentResources": [ "{LogAnalyticsWorkspace}" ],
+              "visualization": "piechart",
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "seriesName": "Healthy (<15 min)",   "color": "green" },
+                  { "seriesName": "Lagging (15-60 min)", "color": "yellow" },
+                  { "seriesName": "Stale (>60 min)",     "color": "redBright" }
+                ]
+              }
+            },
+            "customWidth": "50",
+            "name": "chart-inventory-heartbeat"
+          },
           {
             "type": 3,
             "content": {
