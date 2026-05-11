@@ -72,6 +72,8 @@ Changing `workbookId` creates a new Workbook resource.
 
 ## Validate data before demo
 
+Use these checks to confirm the data needed by each workbook area exists before opening the workbook.
+
 ### Arc machine inventory
 
 ```powershell
@@ -99,6 +101,32 @@ az monitor log-analytics query `
 ```powershell
 az graph query -q "patchassessmentresources | summarize count() by type" -o table
 ```
+
+### Policy, Machine Configuration, and Defender data
+
+```powershell
+az graph query -q "policyresources | where type == 'microsoft.policyinsights/policystates' | summarize count() by tostring(properties.complianceState)" -o table
+
+az graph query -q "guestconfigurationresources | summarize count() by type, tostring(properties.complianceStatus)" -o table
+
+az graph query -q "securityresources | where type == 'microsoft.security/assessments' | summarize count() by tostring(properties.status.code), tostring(properties.metadata.severity)" -o table
+```
+
+## Workbook tab prerequisites
+
+| Tab | Required data |
+| --- | --- |
+| Overview | Arc machine resources in Azure Resource Graph |
+| Priority | Arc machine resources, extension resources, Change Tracking, and Heartbeat data |
+| Machine Detail | Same sources as Priority, filtered by machine name |
+| Policy | `policyresources` policy state rows for Arc machines |
+| Machine Config | `guestconfigurationresources` assignment rows |
+| Extensions/Tags | Arc machine and extension resources in `resources` |
+| Updates | `patchassessmentresources` software patch assessment rows |
+| Defender | `securityresources` assessment rows and Security Reader access |
+| OS Changes | `ConfigurationChange` rows in the selected Log Analytics workspace |
+| App Config | `ConfigurationChange` plus tracked file/inventory rows where applicable |
+| OS Inventory | `Heartbeat` and `ConfigurationData` rows in the selected workspace |
 
 ## Open the Workbook
 

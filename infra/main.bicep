@@ -23,7 +23,7 @@ module workbook 'modules/workbook.bicep' = {
     location: location
     category: category
     sourceId: logAnalyticsWorkspaceId
-    serializedData: loadTextContent('../workbooks/arc-drift-dashboard.workbook.json')
+    serializedData: replace(loadTextContent('../workbooks/arc-drift-dashboard.workbook.json'), '"value":null},{"id":"timeRange"', '"value":"${logAnalyticsWorkspaceId}"},{"id":"timeRange"')
   }
 }
 

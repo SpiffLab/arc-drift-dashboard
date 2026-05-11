@@ -55,6 +55,8 @@ The workbook is organized around drift questions rather than raw inventory alone
 
 | Drift question | Workbook area |
 | --- | --- |
+| Which machines should be investigated first? | Priority |
+| What does drift look like for one specific machine? | Machine Detail |
 | Which machines are connected, stale, or disconnected? | Overview, OS Inventory |
 | Which machines are missing required operational extensions? | Extensions / Tags |
 | Which machines are missing required metadata? | Extensions / Tags |
@@ -68,6 +70,8 @@ The workbook is organized around drift questions rather than raw inventory alone
 | Tab in the workbook | Drift focus | Data plane | Backing table(s) |
 | --- | --- | --- |
 | Overview | Fleet state and connectivity drift | ARG | `resources` (`microsoft.hybridcompute/machines` + `.../extensions`) |
+| Priority | Scored baseline drift plus scored in-OS change drift | ARG + LA | `resources` (`microsoft.hybridcompute/machines` + `.../extensions`), `ConfigurationChange`, `Heartbeat` |
+| Machine Detail | Per-machine drill-through for baseline and change drift | ARG + LA | `resources`, `policyresources`, `guestconfigurationresources`, `patchassessmentresources`, `ConfigurationChange`, `Heartbeat` |
 | Policy | Governance baseline drift | ARG | `policyresources` (`microsoft.policyinsights/policystates`) |
 | Machine Config | Guest configuration baseline drift | ARG | `guestconfigurationresources` |
 | Extensions / Tags | Required extension and metadata drift | ARG | `resources` |
@@ -75,6 +79,22 @@ The workbook is organized around drift questions rather than raw inventory alone
 | Defender | Security posture drift | ARG | `securityresources` (`microsoft.security/assessments`) |
 | OS Changes | In-OS change drift | LA | `ConfigurationChange` |
 | OS Inventory | Inventory and heartbeat drift | LA | `Heartbeat`, `ConfigurationData` |
+
+## Data prerequisites by tab
+
+| Tab | Required data source | Azure service / setup needed | Empty tab usually means |
+| --- | --- | --- | --- |
+| Overview | ARG `resources` | Arc-enabled servers onboarded and visible to the viewer | No Arc machine resources in selected subscription scope or missing Reader access |
+| Priority | ARG `resources`, LA `ConfigurationChange`, LA `Heartbeat` | Arc inventory, extension resources, and Change Tracking | Arc resources are not visible, or the selected workspace does not contain Change Tracking data |
+| Machine Detail | ARG posture tables and LA Change Tracking / Heartbeat | Same as Priority; use the machine filter to drill into one server | Machine name does not match the selected subscriptions/workspace, or data is split across workspaces |
+| Policy | ARG `policyresources` | Azure Policy assignments evaluated against Arc machines | No policy assignments, no non-compliant states, or missing Reader access |
+| Machine Config | ARG `guestconfigurationresources` | Machine Configuration assignments and guest configuration extension | No assignments, no reported non-compliance, or guest configuration not reporting |
+| Extensions / Tags | ARG `resources` | Arc machine resources and extension resources | Baseline extensions/tags are present, or extension resources are not visible |
+| Updates | ARG `patchassessmentresources` | Azure Update Manager patch assessment has run | Patch assessment has not run or no pending software patch rows exist |
+| Defender | ARG `securityresources` | Defender for Cloud recommendations and Security Reader access | Defender not enabled, no unhealthy recommendations, or missing Security Reader access |
+| OS Changes | LA `ConfigurationChange` | AMA plus Change Tracking and Inventory data collection | Selected workspace lacks `ConfigurationChange`, or no changes occurred in TimeRange |
+| App Config | LA `ConfigurationChange`, `ConfigurationData` | Change Tracking rules for files/registry/services/software/daemons | DCR does not track those paths/types, or the incident window has no matching changes |
+| OS Inventory | LA `Heartbeat`, `ConfigurationData` | AMA plus Change Tracking and Inventory inventory collection | Selected workspace lacks `ConfigurationData` or heartbeat rows for the target machines |
 
 ## Required RBAC for viewers
 

@@ -4,6 +4,23 @@ The Arc Drift Dashboard is designed to be copied, changed, and redeployed. The W
 
 Most customization is about defining what "expected state" means for your environment. Once that baseline is defined, the workbook surfaces machines that drift from it.
 
+## Priority scoring
+
+The `Priority` tab is intentionally opinionated but easy to tune. It has two scores:
+
+- **Baseline drift score**: connection state, missing required tags, missing required extensions, and extension provisioning failures.
+- **Change drift score**: recent Change Tracking volume, sensitive files/registry/services/daemons, and after-hours changes.
+
+The baseline score intentionally uses Arc resource inventory, tags, extensions, and extension provisioning state so it works in one Azure Resource Graph workbook query. Policy, Machine Configuration, Update Manager, and Defender each have dedicated tabs because Azure Resource Graph limits which service-specific tables can be combined in a single workbook query.
+
+Adjust the score weights in `workbooks/arc-drift-dashboard.workbook.json` in the `table-baseline-priority` and `table-change-priority` queries. For example, increase `missingExtensions * 10` if required extensions should dominate, or reduce `afterHoursChanges * 3` if after-hours changes are expected in your maintenance windows.
+
+## Machine drill-through
+
+The `Machine Detail` tab uses the `MachineName` workbook parameter. Users can type a machine name directly, or click a machine name from the `Priority` tab. The drill-through view combines ARG baseline posture with Log Analytics heartbeat and Change Tracking data.
+
+If customers have duplicate hostnames across environments, extend the filter to include resource group, subscription, or `_ResourceId` so drill-through is unique.
+
 ## Baseline tags
 
 Tag drift is implemented in:
