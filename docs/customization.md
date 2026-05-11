@@ -64,10 +64,13 @@ This lets the Workbook show patch posture for Arc-enabled servers and Azure VMs 
 
 ## Defender
 
-The Defender tab includes two kinds of drift:
+The Defender tab is designed as an operator triage view, not just a reporting page. It includes three kinds of drift:
 
 - **Security posture drift** from Defender for Cloud recommendations in Azure Resource Graph.
-- **Client/rules drift** from MDE Arc extension resources and Defender Antivirus software inventory in `ConfigurationData`.
+- **MDE onboarding drift** from Arc extension resources, including missing, failed, updating, and disconnected machines.
+- **Client/rules drift** from Defender Antivirus security intelligence and antimalware platform software inventory in `ConfigurationData`.
+
+Start with **Defender action summary**, then work the **MDE extension action board**, **Defender version lag action board**, and **Defender recommendation action board**. The action boards include a `nextAction` column so teams can quickly distinguish extension deployment work, Arc connectivity blockers, inventory gaps, version lag, and Defender for Cloud remediation.
 
 The security intelligence and antimalware platform version views depend on Change Tracking and Inventory collecting software inventory. If those panels are empty, confirm the selected Log Analytics workspace contains `ConfigurationData` rows with software names like `Security Intelligence Update for Microsoft Defender Antivirus` or `Update for Microsoft Defender Antivirus antimalware platform`.
 
