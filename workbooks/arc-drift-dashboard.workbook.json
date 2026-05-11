@@ -4,7 +4,7 @@
     {
       "type": 1,
       "content": {
-        "json": "# Arc Drift Dashboard\n\nDrift detection across **Azure Arc–enabled servers**, both at the Azure control-plane level and inside the guest OS. Use the tabs below to switch views. All data is read-only and obeys your Entra RBAC."
+        "json": "# Arc Drift Dashboard\n\nDrift detection across **Azure Arc-enabled servers**, both at the Azure control-plane level and inside the guest OS. Use the tabs below to move from estate overview to actionable drift.\n\n**Demo flow:** start with **Overview** for connected/disconnected inventory, then use **Extensions/Tags** to show missing operational baselines, followed by **Policy**, **Machine Config**, **Updates**, and **Defender** for governance and security posture. All data is read-only and obeys the viewer's Entra RBAC."
       },
       "name": "title"
     },
@@ -813,7 +813,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend _mIdJoin = tolower(tostring(split(id, '/patchAssessmentResults/')[0]))\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' | where '{OSFilter}' == 'All' or tostring(properties.osType) =~ '{OSFilter}' | project _mId = tolower(id)) on $left._mIdJoin == $right._mId\n| extend classification = tostring(properties.classifications)\n| extend classification = replace_regex(classification, @'[\\[\\]\"]', '')\n| extend classification = iff(isempty(classification), 'Other', classification)\n| summarize count() by classification",
+              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches' or type =~ 'microsoft.compute/virtualmachines/patchassessmentresults/softwarepatches'\n| extend _mIdJoin = tolower(tostring(split(id, '/patchAssessmentResults/')[0]))\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' or type =~ 'microsoft.compute/virtualmachines' | extend osType = tostring(coalesce(properties.osType, properties.storageProfile.osDisk.osType)) | where '{OSFilter}' == 'All' or osType =~ '{OSFilter}' | project _mId = tolower(id), machineName=name, resourceType=type) on $left._mIdJoin == $right._mId\n| extend classification = tostring(properties.classifications)\n| extend classification = replace_regex(classification, @'[\\[\\]\"]', '')\n| extend classification = iff(isempty(classification), 'Other', classification)\n| summarize count() by classification",
               "size": 3,
               "title": "Pending patches by classification",
               "queryType": 1,
@@ -830,7 +830,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend _mIdJoin = tolower(tostring(split(id, '/patchAssessmentResults/')[0]))\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' | where '{OSFilter}' == 'All' or tostring(properties.osType) =~ '{OSFilter}' | project _mId = tolower(id)) on $left._mIdJoin == $right._mId\n| extend severity = tostring(properties.msrcSeverity)\n| extend severity = iff(isempty(severity), 'Unrated', severity)\n| summarize count() by severity",
+              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches' or type =~ 'microsoft.compute/virtualmachines/patchassessmentresults/softwarepatches'\n| extend _mIdJoin = tolower(tostring(split(id, '/patchAssessmentResults/')[0]))\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' or type =~ 'microsoft.compute/virtualmachines' | extend osType = tostring(coalesce(properties.osType, properties.storageProfile.osDisk.osType)) | where '{OSFilter}' == 'All' or osType =~ '{OSFilter}' | project _mId = tolower(id), machineName=name, resourceType=type) on $left._mIdJoin == $right._mId\n| extend severity = tostring(properties.msrcSeverity)\n| extend severity = iff(isempty(severity), 'Unrated', severity)\n| summarize count() by severity",
               "size": 3,
               "title": "Pending patches by MSRC severity",
               "queryType": 1,
@@ -871,7 +871,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'\n| extend _mIdJoin = tolower(tostring(split(id, '/patchAssessmentResults/')[0]))\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' | where '{OSFilter}' == 'All' or tostring(properties.osType) =~ '{OSFilter}' | project _mId = tolower(id)) on $left._mIdJoin == $right._mId\n| extend machineId = tolower(tostring(split(id, '/providers/microsoft.hybridcompute/machines/')[1]))\n| extend machineName = tostring(split(machineId, '/')[0])\n| extend classification = tostring(properties.classifications), severity = tostring(properties.msrcSeverity), publishedDate = todatetime(properties.publishedDate)\n| summarize pending = count(), critical = countif(severity =~ 'Critical'), security = countif(classification has 'Security'), oldest = min(publishedDate) by machineName\n| order by critical desc, pending desc",
+              "query": "patchassessmentresources\n| where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches' or type =~ 'microsoft.compute/virtualmachines/patchassessmentresults/softwarepatches'\n| extend _mIdJoin = tolower(tostring(split(id, '/patchAssessmentResults/')[0]))\n| join kind=inner (resources | where type =~ 'microsoft.hybridcompute/machines' or type =~ 'microsoft.compute/virtualmachines' | extend osType = tostring(coalesce(properties.osType, properties.storageProfile.osDisk.osType)) | where '{OSFilter}' == 'All' or osType =~ '{OSFilter}' | project _mId = tolower(id), machineName=name, resourceType=type) on $left._mIdJoin == $right._mId\n| extend classification = tostring(properties.classifications), severity = tostring(properties.msrcSeverity), publishedDate = todatetime(coalesce(tostring(properties.publishedDateTime), tostring(properties.publishedDate)))\n| extend severity = iff(isempty(severity), 'Unrated', severity)\n| summarize pending = count(), critical = countif(severity =~ 'Critical'), security = countif(classification has 'Security'), oldest = min(publishedDate) by machineName, resourceType\n| order by critical desc, pending desc",
               "size": 0,
               "title": "Pending updates per machine",
               "queryType": 1,
@@ -1938,7 +1938,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "ConfigurationData\n| where '{OSFilter}' == 'All' or OSType =~ '{OSFilter}'\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| extend Publisher = iff(isempty(Publisher), 'Unknown', Publisher)\n| summarize count() by Publisher\n| top 10 by count_",
+              "query": "let _osMap = Heartbeat\n| summarize arg_max(TimeGenerated, OSType) by Computer\n| project Computer, _OSType = OSType;\nConfigurationData\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}'\n| extend Publisher = iff(isempty(Publisher), 'Unknown', Publisher)\n| summarize count() by Publisher\n| top 10 by count_",
               "size": 3,
               "title": "Software inventory by publisher (top 10)",
               "queryType": 0,
@@ -2003,7 +2003,7 @@
             "type": 3,
             "content": {
               "version": "KqlItem/1.0",
-              "query": "ConfigurationData\n| where '{OSFilter}' == 'All' or OSType =~ '{OSFilter}'\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| summarize machines = make_set(Computer), machineCount = dcount(Computer) by SoftwareName, Publisher, CurrentVersion\n| extend totalMachines = toscalar(ConfigurationData | where '{OSFilter}' == 'All' or OSType =~ '{OSFilter}' | where ConfigDataType == 'Software' and TimeGenerated > ago(1d) | summarize dcount(Computer))\n| extend coverage = round(100.0 * machineCount / totalMachines, 1)\n| where coverage < 100 and coverage > 0\n| project SoftwareName, Publisher, CurrentVersion, machineCount, totalMachines, coverage, machines\n| order by coverage asc, SoftwareName asc",
+              "query": "let _osMap = Heartbeat\n| summarize arg_max(TimeGenerated, OSType) by Computer\n| project Computer, _OSType = OSType;\nlet _software = ConfigurationData\n| where ConfigDataType == 'Software'\n| where TimeGenerated > ago(1d)\n| lookup kind=leftouter _osMap on Computer\n| where '{OSFilter}' == 'All' or _OSType =~ '{OSFilter}';\n_software\n| summarize machines = make_set(Computer), machineCount = dcount(Computer) by SoftwareName, Publisher, CurrentVersion\n| extend totalMachines = toscalar(_software | summarize dcount(Computer))\n| extend coverage = round(100.0 * machineCount / totalMachines, 1)\n| where coverage < 100 and coverage > 0\n| project SoftwareName, Publisher, CurrentVersion, machineCount, totalMachines, coverage, machines\n| order by coverage asc, SoftwareName asc",
               "size": 0,
               "title": "Software inventory — partial-coverage entries (potential drift)",
               "queryType": 0,

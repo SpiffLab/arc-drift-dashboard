@@ -1,16 +1,22 @@
-// Azure Update Manager — pending updates per Arc machine.
+// Azure Update Manager — pending updates per Arc machine or Azure VM.
 patchassessmentresources
 | where type =~ 'microsoft.hybridcompute/machines/patchassessmentresults/softwarepatches'
-   or  type =~ 'microsoft.hybridcompute/machines/patchassessmentresults'
-| extend machineId = tolower(tostring(split(id, '/providers/microsoft.hybridcompute/machines/')[1]))
-| extend machineName = tostring(split(machineId, '/')[0])
+   or type =~ 'microsoft.compute/virtualmachines/patchassessmentresults/softwarepatches'
+| extend _mIdJoin = tolower(tostring(split(id, '/patchAssessmentResults/')[0]))
+| join kind=inner (
+    resources
+    | where type =~ 'microsoft.hybridcompute/machines'
+       or type =~ 'microsoft.compute/virtualmachines'
+    | extend osType = tostring(coalesce(properties.osType, properties.storageProfile.osDisk.osType))
+    | project _mId = tolower(id), machineName = name, resourceType = type, osType
+) on $left._mIdJoin == $right._mId
 | extend classification = tostring(properties.classifications),
-         severity       = tostring(properties.msrcSeverity),
-         publishedDate  = todatetime(properties.publishedDate)
-| where type endswith 'softwarepatches'
+          severity       = tostring(properties.msrcSeverity),
+          publishedDate  = todatetime(coalesce(tostring(properties.publishedDateTime), tostring(properties.publishedDate)))
+| extend severity = iff(isempty(severity), 'Unrated', severity)
 | summarize pending = count(),
             critical = countif(severity =~ 'Critical'),
             security = countif(classification has 'Security'),
             oldest = min(publishedDate)
-        by machineName
+        by machineName, resourceType, osType
 | order by critical desc, pending desc
