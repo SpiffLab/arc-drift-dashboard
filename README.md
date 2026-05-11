@@ -18,9 +18,9 @@ Screenshots below are captured from a live Azure Portal deployment with **TimeRa
 | --- | --- |
 | ![Updates tab showing pending patch classification and machine-level patch posture](docs/screenshots/updates.png) | ![OS Changes tab showing Change Tracking drift by change type](docs/screenshots/os-changes.png) |
 
-| OS Inventory |
-| --- | --- |
-| ![OS Inventory tab showing software inventory and heartbeat freshness](docs/screenshots/os-inventory.png) |
+**OS Inventory**
+
+![OS Inventory tab showing software inventory and heartbeat freshness](docs/screenshots/os-inventory.png)
 
 ## What "drift" means here
 
