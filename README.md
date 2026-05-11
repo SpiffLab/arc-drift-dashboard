@@ -6,6 +6,22 @@ The goal is to help operations and platform teams quickly answer: **what changed
 
 The workbook is intentionally lightweight: no app hosting, no database, no custom identity, and no external service. Viewers use their own Entra identity and see only what Azure RBAC allows them to see.
 
+## Screenshots
+
+Screenshots below are captured from a live Azure Portal deployment with **TimeRange = Last 7 days** and cropped to the workbook canvas.
+
+| Overview | Extensions and tags |
+| --- | --- |
+| ![Overview tab showing Arc machine connection state and drift summary charts](docs/screenshots/overview.png) | ![Extensions and tags tab showing required extension and tag baseline drift](docs/screenshots/extensions-tags.png) |
+
+| Updates | OS Changes |
+| --- | --- |
+| ![Updates tab showing pending patch classification and machine-level patch posture](docs/screenshots/updates.png) | ![OS Changes tab showing Change Tracking drift by change type](docs/screenshots/os-changes.png) |
+
+| OS Inventory |
+| --- | --- |
+| ![OS Inventory tab showing software inventory and heartbeat freshness](docs/screenshots/os-inventory.png) |
+
 ## What "drift" means here
 
 This dashboard surfaces two practical kinds of drift:
