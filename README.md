@@ -4,18 +4,6 @@ An Azure-native drift detection dashboard for Azure Arc-enabled servers, deliver
 
 The workbook is intentionally lightweight: no app hosting, no database, no custom identity, and no external service. Viewers use their own Entra identity and see only what Azure RBAC allows them to see.
 
-## Screenshots
-
-These representative screenshots show the dashboard flow and the type of data surfaced after deployment.
-
-| Overview | Extensions and tags |
-| --- | --- |
-| ![Overview tab](docs/screenshots/overview.svg) | ![Extensions and tags tab](docs/screenshots/extensions-tags.svg) |
-
-| Updates | OS changes and inventory |
-| --- | --- |
-| ![Updates tab](docs/screenshots/updates.svg) | ![OS changes and inventory](docs/screenshots/os-changes-inventory.svg) |
-
 ## What it detects
 
 ### Azure control-plane drift
