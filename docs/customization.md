@@ -62,6 +62,15 @@ The Updates tab reads `patchassessmentresources` from Azure Resource Graph and s
 
 This lets the Workbook show patch posture for Arc-enabled servers and Azure VMs when both exist in the same estate.
 
+## Defender
+
+The Defender tab includes two kinds of drift:
+
+- **Security posture drift** from Defender for Cloud recommendations in Azure Resource Graph.
+- **Client/rules drift** from MDE Arc extension resources and Defender Antivirus software inventory in `ConfigurationData`.
+
+The security intelligence and antimalware platform version views depend on Change Tracking and Inventory collecting software inventory. If those panels are empty, confirm the selected Log Analytics workspace contains `ConfigurationData` rows with software names like `Security Intelligence Update for Microsoft Defender Antivirus` or `Update for Microsoft Defender Antivirus antimalware platform`.
+
 ## OS Changes
 
 The OS Changes tab uses `ConfigurationChange` to surface in-OS change drift.

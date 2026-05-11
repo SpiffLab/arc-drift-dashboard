@@ -49,7 +49,7 @@ It does not remediate drift directly. It gives teams a read-only, RBAC-scoped vi
 | Machine Configuration | Guest configuration assignments that are non-compliant or not reporting cleanly |
 | Tags and extensions | Missing required metadata or operational extensions |
 | Update Manager | Patch posture drift by classification, severity, and machine |
-| Defender for Cloud | Security posture drift through open recommendations scoped to hybrid machines |
+| Defender for Cloud | Security posture drift through open recommendations scoped to hybrid machines, plus Defender extension, security intelligence, and antimalware platform version drift where inventory data exists |
 
 ### In-OS drift
 

@@ -123,7 +123,7 @@ az graph query -q "securityresources | where type == 'microsoft.security/assessm
 | Machine Config | `guestconfigurationresources` assignment rows |
 | Extensions/Tags | Arc machine and extension resources in `resources` |
 | Updates | `patchassessmentresources` software patch assessment rows |
-| Defender | `securityresources` assessment rows and Security Reader access |
+| Defender | `securityresources` assessment rows, optional MDE extension resources, Security Reader access, and `ConfigurationData` software inventory for Defender version drift |
 | OS Changes | `ConfigurationChange` rows in the selected Log Analytics workspace |
 | App Config | `ConfigurationChange` plus tracked file/inventory rows where applicable |
 | OS Inventory | `Heartbeat` and `ConfigurationData` rows in the selected workspace |
