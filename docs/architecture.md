@@ -19,10 +19,9 @@ The Arc Drift Dashboard is an Azure Monitor Workbook deployed as an ARM resource
 │  │ Guest Configuration   │──┼─────────┼─►│ ↑ guestconfig assignments │   │
 │  │ extension (DSC v3)    │  │         │  └───────────────────────────┘   │
 │  └───────────────────────┘  │         │                                  │
-└─────────────────────────────┘         │  Policy / Defender / Update Mgr  │
+└─────────────────────────────┘         │  Policy / Update Manager         │
                                         │  (consumed via Resource Graph    │
                                         │   tables: policyresources,       │
-                                        │   securityresources,             │
                                         │   patchassessmentresources)      │
                                         └──────────────┬───────────────────┘
                                                        │
@@ -76,7 +75,7 @@ The workbook is organized around drift questions rather than raw inventory alone
 | Machine Config | Guest configuration baseline drift | ARG | `guestconfigurationresources` |
 | Extensions / Tags | Required extension and metadata drift | ARG | `resources` |
 | Updates | Patch posture drift | ARG | `patchassessmentresources` for Arc machines and Azure VMs |
-| Defender | Action-oriented Defender drift: MDE readiness, extension failures, version lag, and open recommendations | ARG + LA | `securityresources`, `resources` (`.../extensions`), `ConfigurationData` |
+| Defender | Defender security intelligence and antimalware platform version lag | LA | `ConfigurationData`, `Heartbeat` |
 | OS Changes | In-OS change drift | LA | `ConfigurationChange` |
 | OS Inventory | Inventory and heartbeat drift | LA | `Heartbeat`, `ConfigurationData` |
 
@@ -91,7 +90,7 @@ The workbook is organized around drift questions rather than raw inventory alone
 | Machine Config | ARG `guestconfigurationresources` | Machine Configuration assignments and guest configuration extension | No assignments, no reported non-compliance, or guest configuration not reporting |
 | Extensions / Tags | ARG `resources` | Arc machine resources and extension resources | Baseline extensions/tags are present, or extension resources are not visible |
 | Updates | ARG `patchassessmentresources` | Azure Update Manager patch assessment has run | Patch assessment has not run or no pending software patch rows exist |
-| Defender | ARG `securityresources`, ARG extension resources, LA `ConfigurationData` | Defender for Cloud recommendations, optional MDE Arc extension resources, Arc connection status, and Change Tracking software inventory | Defender not enabled, no unhealthy recommendations, missing Security Reader access, disconnected Arc agents, or selected workspace lacks Defender software inventory rows |
+| Defender | LA `ConfigurationData`, `Heartbeat` | Change Tracking software inventory with Defender Antivirus security intelligence and antimalware platform rows | Selected workspace lacks Defender software inventory rows or machines are not reporting heartbeat |
 | OS Changes | LA `ConfigurationChange` | AMA plus Change Tracking and Inventory data collection | Selected workspace lacks `ConfigurationChange`, or no changes occurred in TimeRange |
 | App Config | LA `ConfigurationChange`, `ConfigurationData` | Change Tracking rules for files/registry/services/software/daemons | DCR does not track those paths/types, or the incident window has no matching changes |
 | OS Inventory | LA `Heartbeat`, `ConfigurationData` | AMA plus Change Tracking and Inventory inventory collection | Selected workspace lacks `ConfigurationData` or heartbeat rows for the target machines |
@@ -102,7 +101,6 @@ The workbook is organized around drift questions rather than raw inventory alone
 | --- | --- | --- |
 | Subscription(s) with Arc machines | `Reader` | ARG for inventory, policy, guest config, update assessment |
 | Log Analytics workspace | `Log Analytics Reader` | Change Tracking, Heartbeat, inventory |
-| Subscription with Defender plan | `Security Reader` | Defender for Cloud recommendations |
 | Resource group hosting the workbook | `Workbook Reader` | Open the workbook itself |
 
 ## Data freshness considerations

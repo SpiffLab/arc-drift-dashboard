@@ -49,15 +49,20 @@ If no rows exist, run or schedule an Update Manager assessment for the target ma
 
 ## Defender tab is empty
 
-The Defender tab requires Defender for Cloud recommendations and appropriate RBAC.
+The Defender tab requires Defender Antivirus software inventory in the selected Log Analytics workspace.
 
 Check:
 
 ```powershell
-az graph query -q "securityresources | where type =~ 'microsoft.security/assessments' | take 5" -o table
+$workspaceId = '<workspace-customer-id>'
+
+az monitor log-analytics query `
+  -w $workspaceId `
+  --analytics-query "ConfigurationData | where TimeGenerated > ago(7d) | where ConfigDataType == 'Software' | where SoftwareName has_any ('Security Intelligence Update for Microsoft Defender Antivirus', 'Microsoft Defender Antivirus antimalware platform') | summarize Records=count(), Computers=dcount(Computer), Last=max(TimeGenerated)" `
+  -o table
 ```
 
-If data exists but the Workbook is empty, confirm the viewer has Security Reader at the right scope.
+If no rows exist, confirm Change Tracking and Inventory software inventory is enabled and that Defender Antivirus inventory is being collected into the workspace selected in the Workbook.
 
 ## Policy or Machine Config tabs are empty
 

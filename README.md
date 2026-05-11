@@ -49,7 +49,7 @@ It does not remediate drift directly. It gives teams a read-only, RBAC-scoped vi
 | Machine Configuration | Guest configuration assignments that are non-compliant or not reporting cleanly |
 | Tags and extensions | Missing required metadata or operational extensions |
 | Update Manager | Patch posture drift by classification, severity, and machine |
-| Defender for Cloud | Security posture drift through an action-oriented Defender cockpit: MDE extension readiness, disconnected machines blocking onboarding, Defender security intelligence/platform version lag, and open recommendations scoped to hybrid machines |
+| Defender version lag | Defender security intelligence and antimalware platform version lag where inventory data exists |
 
 ### In-OS drift
 
@@ -108,7 +108,6 @@ See [Customization guide](docs/customization.md) for where to adjust baselines, 
 | --- | --- | --- |
 | Subscription(s) with Arc machines | Reader | ARG inventory, policy state, guest config, update assessment |
 | Log Analytics workspace | Log Analytics Reader | Change Tracking, inventory, heartbeat, and OS drift views |
-| Defender for Cloud subscription scope | Security Reader | Defender recommendations |
 | Workbook resource group | Workbook Reader or Reader | Open the workbook |
 
 ## Validation

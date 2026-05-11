@@ -8,7 +8,7 @@ This guide deploys the Arc Drift Dashboard as an Azure Monitor Workbook. The dep
 - A target resource group for the Workbook.
 - A Log Analytics workspace that receives data from the Arc-enabled servers you want to inspect.
 - Azure Resource Graph access to the subscriptions that contain the target servers.
-- Optional: Defender for Cloud and Azure Policy data if you want the Defender, Policy, and Machine Config tabs to populate.
+- Optional: Azure Policy and Machine Configuration data if you want the Policy and Machine Config tabs to populate.
 
 ## Required permissions
 
@@ -17,7 +17,6 @@ This guide deploys the Arc Drift Dashboard as an Azure Monitor Workbook. The dep
 | Workbook resource group | Contributor, Monitoring Contributor, or Workbook Contributor | Deploying the Workbook resource |
 | Arc server subscriptions | Reader | Inventory, extension, tag, policy, guest config, and update queries |
 | Log Analytics workspace | Log Analytics Reader | OS Changes and OS Inventory tabs |
-| Defender for Cloud scope | Security Reader | Defender tab |
 
 Viewers do not need deployment rights. They only need read access to the Workbook and the data sources it queries.
 
@@ -102,14 +101,12 @@ az monitor log-analytics query `
 az graph query -q "patchassessmentresources | summarize count() by type" -o table
 ```
 
-### Policy, Machine Configuration, and Defender data
+### Policy and Machine Configuration data
 
 ```powershell
 az graph query -q "policyresources | where type == 'microsoft.policyinsights/policystates' | summarize count() by tostring(properties.complianceState)" -o table
 
 az graph query -q "guestconfigurationresources | summarize count() by type, tostring(properties.complianceStatus)" -o table
-
-az graph query -q "securityresources | where type == 'microsoft.security/assessments' | summarize count() by tostring(properties.status.code), tostring(properties.metadata.severity)" -o table
 ```
 
 ## Workbook tab prerequisites
@@ -123,7 +120,7 @@ az graph query -q "securityresources | where type == 'microsoft.security/assessm
 | Machine Config | `guestconfigurationresources` assignment rows |
 | Extensions/Tags | Arc machine and extension resources in `resources` |
 | Updates | `patchassessmentresources` software patch assessment rows |
-| Defender | `securityresources` assessment rows, optional MDE extension resources, Security Reader access, and `ConfigurationData` software inventory for Defender version drift |
+| Defender | `ConfigurationData` Defender Antivirus software inventory and `Heartbeat` rows in the selected workspace |
 | OS Changes | `ConfigurationChange` rows in the selected Log Analytics workspace |
 | App Config | `ConfigurationChange` plus tracked file/inventory rows where applicable |
 | OS Inventory | `Heartbeat` and `ConfigurationData` rows in the selected workspace |
