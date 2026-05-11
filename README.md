@@ -38,7 +38,7 @@ It does not remediate drift directly. It gives teams a read-only, RBAC-scoped vi
 | View | Purpose |
 | --- | --- |
 | Priority | Scores machines so teams can investigate the highest-risk drift first. Baseline score uses connectivity, required tags, required extensions, and extension provisioning state. Change score uses Change Tracking volume, sensitive changes, and after-hours changes. |
-| Machine Detail | Drill-through page for one machine. Shows profile, tag/extension posture, policy failures, machine configuration failures, pending updates, heartbeat freshness, and recent in-OS changes. |
+| Machine Detail | Drill-through page for one machine selected from a machine-profile dropdown or from the Priority tab. Shows profile, tag/extension posture, policy failures, machine configuration failures, pending updates, heartbeat freshness, and recent in-OS changes. |
 
 ### Azure control-plane drift
 

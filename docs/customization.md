@@ -17,7 +17,7 @@ Adjust the score weights in `workbooks/arc-drift-dashboard.workbook.json` in the
 
 ## Machine drill-through
 
-The `Machine Detail` tab uses the `MachineName` workbook parameter. Users can type a machine name directly, or click a machine name from the `Priority` tab. The drill-through view combines ARG baseline posture with Log Analytics heartbeat and Change Tracking data.
+The `Machine Detail` tab uses the `MachineName` workbook parameter. Users can select a machine profile from a dropdown populated by Azure Resource Graph, or click a machine name from the `Priority` tab. The drill-through view combines ARG baseline posture with Log Analytics heartbeat and Change Tracking data.
 
 If customers have duplicate hostnames across environments, extend the filter to include resource group, subscription, or `_ResourceId` so drill-through is unique.
 
