@@ -2,6 +2,8 @@
 
 The Arc Drift Dashboard is designed to be copied, changed, and redeployed. The Workbook JSON is the source of truth for portal visuals; the standalone files under `queries/` make the important KQL easier to review and test.
 
+Most customization is about defining what "expected state" means for your environment. Once that baseline is defined, the workbook surfaces machines that drift from it.
+
 ## Baseline tags
 
 Tag drift is implemented in:
@@ -16,7 +18,7 @@ Default required tags:
 - `costCenter`
 - `dataClassification`
 
-To add or remove required tags, update the `has<TagName>` columns and the `missingCount` calculation.
+To add or remove required tags, update the `has<TagName>` columns and the `missingCount` calculation. This controls what the dashboard treats as metadata drift.
 
 ## Required extensions
 
@@ -32,11 +34,11 @@ Default checks include:
 - Defender extension
 - Azure Policy extension
 
-Extension resource names differ by OS. Keep Windows and Linux checks separate when adding new required extensions.
+Extension resource names differ by OS. Keep Windows and Linux checks separate when adding new required extensions. This controls what the dashboard treats as operational extension drift.
 
 ## Update Manager
 
-The Updates tab reads `patchassessmentresources` from Azure Resource Graph. It supports both:
+The Updates tab reads `patchassessmentresources` from Azure Resource Graph and surfaces patch posture drift. It supports both:
 
 - `Microsoft.HybridCompute/machines/.../patchAssessmentResults/softwarePatches`
 - `Microsoft.Compute/virtualMachines/.../patchAssessmentResults/softwarePatches`
@@ -45,7 +47,7 @@ This lets the Workbook show patch posture for Arc-enabled servers and Azure VMs 
 
 ## OS Changes
 
-The OS Changes tab uses `ConfigurationChange`.
+The OS Changes tab uses `ConfigurationChange` to surface in-OS change drift.
 
 Common useful customizations:
 
@@ -56,7 +58,7 @@ Common useful customizations:
 
 ## OS Inventory
 
-The OS Inventory tab uses `ConfigurationData` and `Heartbeat`.
+The OS Inventory tab uses `ConfigurationData` and `Heartbeat` to surface inventory, software, and heartbeat drift.
 
 `ConfigurationData` does not always contain an OS column, so the Workbook derives OS from `Heartbeat` and joins by computer name. If your environment has duplicate computer names across workspaces, scope the Workbook to the appropriate workspace or adjust the join to include `_ResourceId` where available.
 

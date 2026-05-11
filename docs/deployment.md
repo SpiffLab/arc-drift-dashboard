@@ -1,6 +1,6 @@
 # Deployment guide
 
-This guide deploys the Arc Drift Dashboard as an Azure Monitor Workbook.
+This guide deploys the Arc Drift Dashboard as an Azure Monitor Workbook. The deployed workbook is a read-only view for surfacing drift across Azure Arc-enabled servers: missing baseline controls, non-compliance, patch posture differences, security recommendations, and in-OS changes.
 
 ## Prerequisites
 

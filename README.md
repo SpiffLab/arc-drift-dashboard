@@ -1,29 +1,40 @@
 # Arc Drift Dashboard
 
-An Azure-native drift detection dashboard for Azure Arc-enabled servers, delivered as an Azure Monitor Workbook plus supporting Azure Resource Graph (ARG), Log Analytics KQL, Bicep deployment, and a reference Azure Policy initiative.
+An Azure-native dashboard for surfacing configuration drift across Azure Arc-enabled servers. It is delivered as an Azure Monitor Workbook plus supporting Azure Resource Graph (ARG), Log Analytics KQL, Bicep deployment, and a reference Azure Policy initiative.
+
+The goal is to help operations and platform teams quickly answer: **what changed, what no longer matches the expected baseline, and which machines need attention first?**
 
 The workbook is intentionally lightweight: no app hosting, no database, no custom identity, and no external service. Viewers use their own Entra identity and see only what Azure RBAC allows them to see.
+
+## What "drift" means here
+
+This dashboard surfaces two practical kinds of drift:
+
+- **Baseline drift**: a machine no longer matches the expected operational baseline, such as required tags, required extensions, policy assignments, machine configuration, patch posture, or Defender recommendations.
+- **Change drift**: files, registry keys, services, software, or daemons changed inside the OS, as reported by Change Tracking and Inventory.
+
+It does not remediate drift directly. It gives teams a read-only, RBAC-scoped view of where drift exists so they can investigate and remediate through their standard operational processes.
 
 ## What it detects
 
 ### Azure control-plane drift
 
-| Source | What it surfaces |
+| Source | Drift surfaced |
 | --- | --- |
-| Azure Resource Graph inventory | Arc machine connection state, OS mix, agent versions, locations, and extensions |
-| Azure Policy | Non-compliant Arc machines vs. assigned policies and initiatives |
-| Machine Configuration | Guest configuration assignment status and last reported compliance |
-| Tags and extensions | Missing required tags and missing required operational extensions |
-| Update Manager | Pending patches by classification, severity, and machine |
-| Defender for Cloud | Open recommendations scoped to hybrid machines |
+| Azure Resource Graph inventory | Machines that are disconnected, stale, or different from the expected fleet shape |
+| Azure Policy | Machines drifting from assigned policy and initiative requirements |
+| Machine Configuration | Guest configuration assignments that are non-compliant or not reporting cleanly |
+| Tags and extensions | Missing required metadata or operational extensions |
+| Update Manager | Patch posture drift by classification, severity, and machine |
+| Defender for Cloud | Security posture drift through open recommendations scoped to hybrid machines |
 
 ### In-OS drift
 
-| Source | What it surfaces |
+| Source | Drift surfaced |
 | --- | --- |
 | Change Tracking and Inventory | File, registry, service, software, and daemon changes from `ConfigurationChange` |
-| Inventory collection | Software, services, daemons, files, and heartbeat freshness from `ConfigurationData` and `Heartbeat` |
-| App Config tab | Incident-window filtering, sensitive configuration changes, and fleet-level file hash drift |
+| Inventory collection | Software, services, daemons, files, and heartbeat freshness drift from `ConfigurationData` and `Heartbeat` |
+| App Config tab | Incident-window drift, sensitive configuration changes, and fleet-level file hash differences |
 
 ## Repository layout
 
@@ -59,7 +70,7 @@ See [Deployment guide](docs/deployment.md) for detailed setup, RBAC, validation,
 
 ## Customization
 
-The default baseline is intentionally simple and easy to modify:
+The default drift baseline is intentionally simple and easy to modify:
 
 - Required tags: `environment`, `owner`, `costCenter`, `dataClassification`
 - Required extensions: Azure Monitor Agent, Change Tracking, Defender, and Azure Policy
