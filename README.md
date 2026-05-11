@@ -33,7 +33,7 @@ queries/arg/    Standalone Azure Resource Graph queries
 queries/kql/    Standalone Log Analytics KQL queries
 infra/          Bicep deployment files
 policies/       Reference Azure Policy initiative for an Arc baseline
-docs/           Architecture, deployment, customization, troubleshooting, and screenshots
+docs/           Architecture, deployment, customization, and troubleshooting
 ```
 
 ## Quick deploy
