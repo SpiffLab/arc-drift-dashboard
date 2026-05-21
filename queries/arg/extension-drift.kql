@@ -2,23 +2,36 @@
 // Note: Azure Resource Graph does NOT support `let`, `mv-apply`, or `set_difference`,
 // so the required-extension list is expressed as per-extension boolean columns.
 // Edit the array_index_of() lines below to match your baseline.
+//
+// Required extensions (default):
+//   AMA             — Azure Monitor Agent (data collection prerequisite)
+//   ChangeTracking  — Change Tracking and Inventory (in-OS drift visibility)
+//   Defender        — Microsoft Defender for Endpoint
+//   AzurePolicy     — Azure Policy / Guest Configuration (compliance baseline prerequisite)
 resources
 | where type =~ 'microsoft.hybridcompute/machines'
-| extend machineId = id, machineName = name, osType = tostring(properties.osType)
+| extend machineId = tolower(id), machineName = name, osType = tostring(properties.osType)
 | join kind=leftouter (
     resources
     | where type =~ 'microsoft.hybridcompute/machines/extensions'
-    | extend machineId = tostring(split(id, '/extensions/')[0])
+    | extend machineId = tolower(tostring(split(id, '/extensions/')[0]))
     | summarize installed = make_set(name) by machineId
 ) on machineId
 | extend installed = iff(isnull(installed), dynamic([]), installed)
-| extend hasAMA = (osType =~ 'windows' and array_index_of(installed,'AzureMonitorWindowsAgent') >= 0)
-              or (osType =~ 'linux'   and array_index_of(installed,'AzureMonitorLinuxAgent')   >= 0),
-         hasChangeTracking = (osType =~ 'windows' and array_index_of(installed,'ChangeTracking-Windows') >= 0)
-                          or (osType =~ 'linux'   and array_index_of(installed,'ChangeTracking-Linux')   >= 0),
-         hasMDE = (osType =~ 'windows' and array_index_of(installed,'MDE.Windows') >= 0)
-               or (osType =~ 'linux'   and array_index_of(installed,'MDE.Linux')   >= 0)
-| extend missingCount = toint(not(hasAMA)) + toint(not(hasChangeTracking)) + toint(not(hasMDE))
+| extend
+    AMA = iff(
+        (osType =~ 'windows' and array_index_of(installed,'AzureMonitorWindowsAgent') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'AzureMonitorLinuxAgent')   >= 0), 1, 0),
+    ChangeTracking = iff(
+        (osType =~ 'windows' and array_index_of(installed,'ChangeTracking-Windows') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'ChangeTracking-Linux')   >= 0), 1, 0),
+    Defender = iff(
+        (osType =~ 'windows' and array_index_of(installed,'MDE.Windows') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'MDE.Linux')   >= 0), 1, 0),
+    AzurePolicy = iff(
+        (osType =~ 'windows' and array_index_of(installed,'AzurePolicyforWindows') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'AzurePolicyforLinux')   >= 0), 1, 0)
+| extend missingCount = (4 - AMA - ChangeTracking - Defender - AzurePolicy)
 | where missingCount > 0
-| project machineName, resourceGroup, osType, hasAMA, hasChangeTracking, hasMDE, missingCount, installed
-| order by missingCount desc
+| project machineName, resourceGroup, osType, AMA, ChangeTracking, Defender, AzurePolicy, missingCount, installed
+| order by missingCount desc, machineName asc

@@ -43,3 +43,32 @@ jobs:
           for f in queries/**/*.kql; do
             if [ ! -s "$f" ]; then echo "Empty query: $f" >&2; exit 1; fi
           done
+
+      - name: Guard ARG KQL against unsupported syntax
+        run: |
+          set -e
+          # Azure Resource Graph does not support `let` statements.
+          # Any ARG query using `let` will fail at runtime with a cryptic error.
+          failed=0
+          for f in queries/arg/*.kql; do
+            # Allow `let` in comments but not as a statement keyword
+            if grep -P '^\s*let\s+' "$f" > /dev/null 2>&1; then
+              echo "ERROR: ARG query uses 'let' (not supported in Resource Graph): $f" >&2
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then exit 1; fi
+
+      - name: Guard ARG KQL for case-sensitive split() safety
+        run: |
+          set -e
+          # split() in ARG is case-sensitive. Resource IDs use mixed case (e.g. Microsoft.GuestConfiguration).
+          # Any split() call must be preceded by tolower() on the target string.
+          # This check flags split() calls that are NOT immediately inside a tolower() call.
+          failed=0
+          for f in queries/arg/*.kql; do
+            # Heuristic: find split( without tolower( on the same expression
+            if grep -P '\bsplit\s*\(' "$f" | grep -vP 'tolower\s*\(.*split\s*\(' > /dev/null 2>&1; then
+              echo "WARNING: ARG query may use split() without tolower() — verify case safety: $f" >&2
+            fi
+          done

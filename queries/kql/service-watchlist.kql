@@ -1,0 +1,51 @@
+// Critical service / daemon state changes — watchlist of security-critical services.
+// A stopped WinDefend, himds (Arc agent), sshd, or auditd is high-priority drift that
+// is easy to miss in the generic OS Changes view.
+//
+// Windows watchlist: security, networking, monitoring, and Arc agent services.
+// Linux watchlist:   SSH, audit, firewall, cron, Azure monitoring, and MDE agent.
+//
+// Run against Log Analytics (ConfigurationChange table).
+let _osMap = Heartbeat
+    | where isnotempty(_ResourceId)
+    | summarize arg_max(TimeGenerated, OSType) by _ResourceId
+    | project _ResourceId, _OSType = OSType;
+let windowsWatchlist = dynamic([
+    'WinDefend',          // Windows Defender Antivirus
+    'Sense',              // Microsoft Defender for Endpoint
+    'MpsSvc',             // Windows Firewall
+    'EventLog',           // Windows Event Log
+    'wuauserv',           // Windows Update
+    'AzureMonitorAgent',  // Azure Monitor Agent
+    'himds',              // Arc Connected Machine Agent
+    'GCService',          // Guest Configuration service
+    'ExtensionService'    // Arc Extension Manager
+]);
+let linuxWatchlist = dynamic([
+    'sshd',               // OpenSSH daemon
+    'auditd',             // Linux audit daemon
+    'firewalld',          // firewalld
+    'ufw',                // Uncomplicated Firewall
+    'cron',               // cron scheduler
+    'azuremonitoragent',  // Azure Monitor Agent
+    'mdatp',              // Microsoft Defender for Endpoint (Linux)
+    'azcmagent',          // Arc Connected Machine Agent
+    'gcad'                // Guest Configuration Agent daemon
+]);
+ConfigurationChange
+| where TimeGenerated > ago(7d)
+| lookup kind=leftouter _osMap on _ResourceId
+| where ConfigChangeType in ('WindowsServices', 'Daemons')
+| where (_OSType =~ 'Windows' and SvcName in~ (windowsWatchlist))
+     or (_OSType =~ 'Linux'   and SvcName in~ (linuxWatchlist))
+| project
+    TimeGenerated,
+    Computer,
+    OS              = _OSType,
+    ServiceName     = SvcName,
+    DisplayName     = SvcDisplayName,
+    PreviousState   = SvcPreviousState,
+    CurrentState    = SvcState,
+    StartupType     = SvcStartupType,
+    ChangeCategory
+| order by TimeGenerated desc

@@ -1,0 +1,42 @@
+// Privileged group membership changes — new additions to Administrators (Windows)
+// or sudoers / wheel (Linux). These are the highest-signal security events in Change Tracking.
+//
+// Windows: captured via ConfigChangeType == 'WindowsLocalUsers' when group membership changes.
+// Linux:   captured via ConfigChangeType == 'Files' when /etc/sudoers or /etc/group is modified.
+//
+// Run against Log Analytics (ConfigurationChange table).
+let _osMap = Heartbeat
+    | where isnotempty(_ResourceId)
+    | summarize arg_max(TimeGenerated, OSType) by _ResourceId
+    | project _ResourceId, _OSType = OSType;
+ConfigurationChange
+| where TimeGenerated > ago(7d)
+| lookup kind=leftouter _osMap on _ResourceId
+| where (
+    // Windows: local user or group membership change affecting privileged groups
+    (ConfigChangeType == 'WindowsLocalUsers'
+     and (
+         SvcDisplayName contains 'Administrators'
+         or SvcDisplayName contains 'Remote Desktop Users'
+         or FieldsChanged has 'Members'
+     ))
+    // Linux: sudoers file or group file modified
+    or (ConfigChangeType == 'Files'
+        and (
+            FileSystemPath has 'sudoers'
+            or (FileSystemPath =~ '/etc/group' and FieldsChanged has 'wheel')
+            or FileSystemPath startswith '/etc/sudoers.d/'
+        ))
+  )
+| project
+    TimeGenerated,
+    Computer,
+    OS          = _OSType,
+    ChangeType  = ConfigChangeType,
+    Path        = coalesce(FileSystemPath, SvcDisplayName),
+    ChangeCategory,
+    FieldsChanged,
+    Previous,
+    Current,
+    UserName
+| order by TimeGenerated desc

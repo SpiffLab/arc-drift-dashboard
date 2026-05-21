@@ -1,0 +1,31 @@
+// Change burst detection — machines with >20 changes in a single hour.
+// A burst often indicates a script run, patch batch, configuration push,
+// or incident-level event. Surface it here for rapid investigation.
+//
+// Adjust the threshold (20) to match your environment's baseline noise level.
+//
+// Run against Log Analytics (ConfigurationChange table).
+let BurstThreshold = 20;
+let _osMap = Heartbeat
+    | where isnotempty(_ResourceId)
+    | summarize arg_max(TimeGenerated, OSType) by _ResourceId
+    | project _ResourceId, _OSType = OSType;
+ConfigurationChange
+| where TimeGenerated > ago(7d)
+| lookup kind=leftouter _osMap on _ResourceId
+| summarize
+    Changes         = count(),
+    ChangeTypes     = make_set(ConfigChangeType),
+    FirstChange     = min(TimeGenerated),
+    LastChange      = max(TimeGenerated)
+  by Computer, HourBucket = bin(TimeGenerated, 1h)
+| where Changes > BurstThreshold
+| extend OS = toscalar(_osMap | where _ResourceId endswith tolower(Computer) | project _OSType | take 1)
+| project
+    HourBucket,
+    Computer,
+    Changes,
+    ChangeTypes,
+    FirstChange,
+    LastChange
+| order by Changes desc, HourBucket desc

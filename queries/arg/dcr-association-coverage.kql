@@ -1,0 +1,19 @@
+// DCR association coverage: Arc machines with and without a Data Collection Rule association.
+// Extension presence alone does not guarantee data flows — a DCR association (DCRA) is required.
+// A machine without any DCRA will produce empty Change Tracking and AMA tabs even if the
+// ChangeTracking and AzureMonitorAgent extensions are installed and provisioned.
+//
+// Run against Azure Resource Graph.
+resources
+| where type =~ 'microsoft.insights/datacollectionruleassociations'
+| where properties.associationType =~ 'configured'
+| extend machineId = tolower(tostring(split(id, '/providers/microsoft.insights')[0]))
+| summarize dcrCount = count() by machineId
+| join kind=rightouter (
+    resources
+    | where type =~ 'microsoft.hybridcompute/machines'
+    | project machineId = tolower(id), machineName = name, resourceGroup, location, subscriptionId
+) on machineId
+| extend hasDCR = isnotnull(dcrCount) and dcrCount > 0
+| project machineName, resourceGroup, location, subscriptionId, hasDCR, dcrCount = iff(isnull(dcrCount), 0, dcrCount)
+| order by hasDCR asc, machineName asc

@@ -1,0 +1,39 @@
+// RBAC role-assignment drift — direct role assignments at Arc machine resource scope.
+// Assignments at machine scope (as opposed to subscription or resource group scope)
+// are uncommon and worth reviewing: Owner or Contributor grants at this level represent
+// privilege creep that bypasses standard IAM governance.
+//
+// This query surfaces all role assignments whose scope contains a hybridcompute/machines path.
+// Review and remove any assignments that are not expected for your environment.
+//
+// Run against Azure Resource Graph.
+authorizationresources
+| where type =~ 'microsoft.authorization/roleassignments'
+| extend scope     = tolower(tostring(properties.scope))
+| where scope contains 'microsoft.hybridcompute/machines'
+| extend
+    principalId  = tostring(properties.principalId),
+    principalType = tostring(properties.principalType),
+    roleDefId    = tolower(tostring(properties.roleDefinitionId)),
+    createdOn    = todatetime(properties.createdOn),
+    createdBy    = tostring(properties.createdBy)
+| extend roleName = case(
+    roleDefId contains 'b24988ac-6180-42a0-ab88-20f7382dd24c', 'Contributor',
+    roleDefId contains '8e3af657-a8ff-443c-a75c-2fe8c4bcb635', 'Owner',
+    roleDefId contains 'acdd72a7-3385-48ef-bd42-f606fba81ae7', 'Reader',
+    roleDefId contains 'cd570a14-e51a-42ad-bac8-bafd67325302', 'Azure Connected Machine Resource Administrator',
+    roleDefId contains 'ddfec0b4-e8b9-4c04-8e05-eccc7c2cc97b', 'Azure Connected Machine Onboarding',
+    roleDefId contains '68e1a58e-b4b0-43e5-9b3b-f88b1d6cf66e', 'Virtual Machine Contributor',
+    tostring(roleDefId)
+  )
+| extend machineName = tostring(split(scope, '/machines/')[1])
+| project
+    machineName,
+    resourceGroup  = tostring(split(scope, '/resourcegroups/')[1] | split('/')[0]),
+    roleName,
+    principalId,
+    principalType,
+    createdOn,
+    createdBy,
+    subscriptionId
+| order by createdOn desc

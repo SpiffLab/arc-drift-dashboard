@@ -1,0 +1,30 @@
+// Fleet-wide simultaneous events — the same service stopped on multiple machines
+// within a short window. This is an incident-level signal: a coordinated outage,
+// a bad patch, or an attacker disabling defenses fleet-wide.
+//
+// Adjust MachineThreshold and WindowMinutes to match your fleet size.
+//
+// Run against Log Analytics (ConfigurationChange table).
+let MachineThreshold = 3;     // minimum machines affected to flag as fleet event
+let WindowMinutes    = 15;    // time window in minutes
+ConfigurationChange
+| where TimeGenerated > ago(7d)
+| where ConfigChangeType in ('WindowsServices', 'Daemons')
+| where SvcState =~ 'Stopped' and SvcPreviousState =~ 'Running'
+| summarize
+    MachineCount    = dcount(Computer),
+    Machines        = make_set(Computer, 20),
+    FirstOccurrence = min(TimeGenerated),
+    LastOccurrence  = max(TimeGenerated)
+  by ServiceName = SvcName, WindowBucket = bin(TimeGenerated, totimespan(strcat(tostring(WindowMinutes), 'm')))
+| where MachineCount >= MachineThreshold
+| extend DurationSeconds = datetime_diff('second', LastOccurrence, FirstOccurrence)
+| project
+    WindowBucket,
+    ServiceName,
+    MachineCount,
+    Machines,
+    FirstOccurrence,
+    LastOccurrence,
+    DurationSeconds
+| order by MachineCount desc, WindowBucket desc
