@@ -1,0 +1,51 @@
+// After-hours change detection — configuration changes made outside business hours.
+// Nighttime or weekend changes are a distinct anomaly signal separate from burst volume.
+// Legitimate maintenance windows aside, an after-hours service stop or file change
+// warrants investigation even if only one machine is affected.
+//
+// Business hours default: Mon–Fri 08:00–18:00 local time.
+// Adjust BusinessHoursStart/End and weekday logic to match your environment.
+//
+// Run against Log Analytics (ConfigurationChange table).
+let BusinessHoursStart = 8;   // 8am
+let BusinessHoursEnd   = 18;  // 6pm
+let _osMap = Heartbeat
+    | where isnotempty(_ResourceId)
+    | summarize arg_max(TimeGenerated, OSType) by _ResourceId
+    | project _ResourceId, _OSType = OSType;
+ConfigurationChange
+| where TimeGenerated > ago(7d)
+| lookup kind=leftouter _osMap on _ResourceId
+| extend HourOfDay  = hourofday(TimeGenerated)
+| extend DayOfWeek  = dayofweek(TimeGenerated) / 1d  // 0=Sun, 1=Mon ... 6=Sat
+| extend IsWeekend  = DayOfWeek == 0 or DayOfWeek == 6
+| extend IsAfterHours = IsWeekend
+    or HourOfDay < BusinessHoursStart
+    or HourOfDay >= BusinessHoursEnd
+| where IsAfterHours
+// Focus on high-signal change types
+| where ConfigChangeType in ('WindowsServices', 'Daemons', 'Files', 'Registry', 'WindowsUsers', 'Software')
+| extend ChangeDetail = case(
+    ConfigChangeType in ('WindowsServices','Daemons'), strcat(SvcName, ' → ', SvcState),
+    ConfigChangeType == 'Files',                       FileSystemPath,
+    ConfigChangeType == 'Registry',                    RegistryKey,
+    ConfigChangeType in ('WindowsUsers','Software'),   SoftwareName,
+    ConfigChangeType
+  )
+| extend TimeContext = iff(IsWeekend,
+    strcat('Weekend (', format_datetime(TimeGenerated,'ddd'), ')'),
+    iff(HourOfDay < BusinessHoursStart, 'Before hours', 'After hours')
+  )
+| project
+    TimeGenerated,
+    Computer,
+    OS            = _OSType,
+    ChangeType    = ConfigChangeType,
+    ChangeDetail,
+    TimeContext,
+    HourOfDay,
+    DayOfWeek     = case(DayOfWeek==0,'Sun', DayOfWeek==1,'Mon', DayOfWeek==2,'Tue',
+                         DayOfWeek==3,'Wed', DayOfWeek==4,'Thu', DayOfWeek==5,'Fri', 'Sat'),
+    ChangeCategory,
+    UserName
+| order by TimeGenerated desc
