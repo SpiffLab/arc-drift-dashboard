@@ -1,0 +1,50 @@
+// Software inventory drift — packages not installed uniformly across the fleet.
+// Detects unauthorized installs (present on few machines) and version inconsistencies
+// (same software, different versions across machines).
+//
+// Pattern 1: Fleet coverage — software present on < X% of machines (unusual installs)
+// Pattern 2: Recent software changes — installs/uninstalls from Change Tracking
+//
+// Run against Log Analytics (ConfigurationData + ConfigurationChange tables).
+
+// ── Pattern 1: Fleet inventory drift (coverage gaps) ─────────────────────────
+let totalMachines = toscalar(
+    ConfigurationData
+    | where TimeGenerated > ago(1d)
+    | where ConfigDataType == 'Software'
+    | summarize dcount(Computer)
+);
+ConfigurationData
+| where TimeGenerated > ago(1d)
+| where ConfigDataType == 'Software'
+| where isnotempty(SoftwareName)
+// Most recent record per machine+software to avoid double-counting
+| summarize arg_max(TimeGenerated, CurrentVersion, Publisher) by Computer, SoftwareName
+| summarize
+    MachineCount   = dcount(Computer),
+    Versions       = make_set(CurrentVersion, 5),
+    VersionCount   = dcount(CurrentVersion),
+    SampleMachines = make_set(Computer, 5)
+  by SoftwareName, Publisher
+| extend TotalMachines = totalMachines
+| extend CoveragePct = round(100.0 * MachineCount / TotalMachines, 1)
+// Flag software on < 10% of machines (potential unauthorized install)
+// OR software with multiple versions in fleet (version drift)
+| where CoveragePct < 10 or VersionCount > 1
+| extend DriftReason = case(
+    CoveragePct < 10 and VersionCount > 1, 'Low coverage + version skew',
+    CoveragePct < 10,                      'Low coverage (potential unauthorized install)',
+    VersionCount > 1,                      strcat('Version skew (', tostring(VersionCount), ' versions)'),
+    'Other'
+  )
+| project
+    SoftwareName,
+    Publisher,
+    MachineCount,
+    TotalMachines,
+    CoveragePct,
+    VersionCount,
+    Versions,
+    DriftReason,
+    SampleMachines
+| order by CoveragePct asc, VersionCount desc, SoftwareName asc

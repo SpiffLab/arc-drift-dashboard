@@ -15,22 +15,22 @@ resources
     resources
     | where type =~ 'microsoft.hybridcompute/machines/extensions'
     | extend machineId = tolower(tostring(split(id, '/extensions/')[0]))
-    | summarize installed = make_set(name) by machineId
+    | summarize installed = make_set(tolower(name)) by machineId
 ) on machineId
 | extend installed = iff(isnull(installed), dynamic([]), installed)
 | extend
     AMA = iff(
-        (osType =~ 'windows' and array_index_of(installed,'AzureMonitorWindowsAgent') >= 0)
-     or (osType =~ 'linux'   and array_index_of(installed,'AzureMonitorLinuxAgent')   >= 0), 1, 0),
+        (osType =~ 'windows' and array_index_of(installed,'azuremonitorwindowsagent') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'azuremonitorlinuxagent')   >= 0), 1, 0),
     ChangeTracking = iff(
-        (osType =~ 'windows' and array_index_of(installed,'ChangeTracking-Windows') >= 0)
-     or (osType =~ 'linux'   and array_index_of(installed,'ChangeTracking-Linux')   >= 0), 1, 0),
+        (osType =~ 'windows' and array_index_of(installed,'changetracking-windows') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'changetracking-linux')   >= 0), 1, 0),
     Defender = iff(
-        (osType =~ 'windows' and array_index_of(installed,'MDE.Windows') >= 0)
-     or (osType =~ 'linux'   and array_index_of(installed,'MDE.Linux')   >= 0), 1, 0),
+        (osType =~ 'windows' and array_index_of(installed,'mde.windows') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'mde.linux')   >= 0), 1, 0),
     AzurePolicy = iff(
-        (osType =~ 'windows' and array_index_of(installed,'AzurePolicyforWindows') >= 0)
-     or (osType =~ 'linux'   and array_index_of(installed,'AzurePolicyforLinux')   >= 0), 1, 0)
+        (osType =~ 'windows' and array_index_of(installed,'azurepolicyforwindows') >= 0)
+     or (osType =~ 'linux'   and array_index_of(installed,'azurepolicyforlinux')   >= 0), 1, 0)
 | extend missingCount = (4 - AMA - ChangeTracking - Defender - AzurePolicy)
 | where missingCount > 0
 | project machineName, resourceGroup, osType, AMA, ChangeTracking, Defender, AzurePolicy, missingCount, installed

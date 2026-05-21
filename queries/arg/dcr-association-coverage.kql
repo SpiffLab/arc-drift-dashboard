@@ -6,7 +6,7 @@
 // Run against Azure Resource Graph.
 resources
 | where type =~ 'microsoft.insights/datacollectionruleassociations'
-| where properties.associationType =~ 'configured'
+| where properties.associationType in~ ('configured', 'associated')
 | extend machineId = tolower(tostring(split(id, '/providers/microsoft.insights')[0]))
 | summarize dcrCount = count() by machineId
 | join kind=rightouter (

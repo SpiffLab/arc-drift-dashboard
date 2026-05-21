@@ -1,0 +1,53 @@
+// Arc agent version skew — machines grouped by agent version with fleet distribution.
+// An outdated agent can miss features, have known bugs, and indicates a machine has fallen
+// out of active management. Machines on older major/minor versions are flagged.
+//
+// Tip: machines on the lowest version in your fleet are the highest-risk outliers.
+// There is no API-based canonical "latest" version; fleet-max is used as the baseline.
+//
+// Run against Azure Resource Graph.
+resources
+| where type =~ 'microsoft.hybridcompute/machines'
+| extend
+    machineName  = name,
+    osType       = tostring(properties.osType),
+    status       = tostring(properties.status),
+    agentVersion = tostring(properties.agentVersion),
+    lastContact  = todatetime(properties.lastStatusChange)
+| where isnotempty(agentVersion)
+// Parse version into sortable parts (major.minor.patch)
+| extend vParts = split(agentVersion, '.')
+| extend vMajor = toint(tostring(vParts[0])),
+         vMinor = toint(tostring(vParts[1])),
+         vPatch = toint(tostring(vParts[2]))
+// Find the fleet-maximum major and minor version per OS type via join
+| join kind=inner (
+    resources
+    | where type =~ 'microsoft.hybridcompute/machines'
+    | extend osType = tostring(properties.osType), agentVersion = tostring(properties.agentVersion)
+    | where isnotempty(agentVersion)
+    | extend vParts = split(agentVersion, '.')
+    | extend vMajor = toint(tostring(vParts[0])), vMinor = toint(tostring(vParts[1]))
+    | summarize fleetMaxMajor = max(vMajor), fleetMaxMinor = max(vMinor) by osType
+) on osType
+| extend majorSkew = fleetMaxMajor - vMajor
+| extend minorSkew = iff(majorSkew == 0, fleetMaxMinor - vMinor, 0)
+| extend skewLabel = case(
+    majorSkew >= 1, strcat(tostring(majorSkew), ' major version(s) behind'),
+    minorSkew >= 3, strcat(tostring(minorSkew), ' minor versions behind'),
+    minorSkew >= 1, strcat(tostring(minorSkew), ' minor version(s) behind'),
+    'Current'
+  )
+| where majorSkew >= 1 or minorSkew >= 2
+| project
+    machineName,
+    resourceGroup,
+    osType,
+    status,
+    agentVersion,
+    fleetLatest  = strcat(tostring(fleetMaxMajor), '.', tostring(fleetMaxMinor)),
+    majorSkew,
+    minorSkew,
+    skewLabel,
+    lastContact
+| order by majorSkew desc, minorSkew desc, machineName asc

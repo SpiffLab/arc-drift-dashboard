@@ -17,13 +17,14 @@ ConfigurationChange
     Changes         = count(),
     ChangeTypes     = make_set(ConfigChangeType),
     FirstChange     = min(TimeGenerated),
-    LastChange      = max(TimeGenerated)
+    LastChange      = max(TimeGenerated),
+    OS              = any(_OSType)
   by Computer, HourBucket = bin(TimeGenerated, 1h)
 | where Changes > BurstThreshold
-| extend OS = toscalar(_osMap | where _ResourceId endswith tolower(Computer) | project _OSType | take 1)
 | project
     HourBucket,
     Computer,
+    OS,
     Changes,
     ChangeTypes,
     FirstChange,

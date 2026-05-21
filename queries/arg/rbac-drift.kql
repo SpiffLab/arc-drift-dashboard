@@ -26,10 +26,10 @@ authorizationresources
     roleDefId contains '68e1a58e-b4b0-43e5-9b3b-f88b1d6cf66e', 'Virtual Machine Contributor',
     tostring(roleDefId)
   )
-| extend machineName = tostring(split(scope, '/machines/')[1])
+| extend machineName = tostring(split(split(scope, '/machines/')[1], '/')[0])
 | project
     machineName,
-    resourceGroup  = tostring(split(scope, '/resourcegroups/')[1] | split('/')[0]),
+    resourceGroup  = tostring(split(split(scope, '/resourcegroups/')[1], '/')[0]),
     roleName,
     principalId,
     principalType,

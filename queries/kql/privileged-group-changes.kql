@@ -1,7 +1,10 @@
 // Privileged group membership changes — new additions to Administrators (Windows)
 // or sudoers / wheel (Linux). These are the highest-signal security events in Change Tracking.
 //
-// Windows: captured via ConfigChangeType == 'WindowsLocalUsers' when group membership changes.
+// Windows: captured via ConfigChangeType == 'WindowsUsers' when a local user is added/removed/modified.
+//          Filters to new account creations (ChangeCategory == 'Added') and group membership changes.
+//          Note: Change Tracking records user account events; extracting which group the user was
+//          added TO requires inspecting the 'Current' or 'FieldsChanged' columns in your environment.
 // Linux:   captured via ConfigChangeType == 'Files' when /etc/sudoers or /etc/group is modified.
 //
 // Run against Log Analytics (ConfigurationChange table).
@@ -13,12 +16,11 @@ ConfigurationChange
 | where TimeGenerated > ago(7d)
 | lookup kind=leftouter _osMap on _ResourceId
 | where (
-    // Windows: local user or group membership change affecting privileged groups
-    (ConfigChangeType == 'WindowsLocalUsers'
+    // Windows: local user added, or group membership / LocalGroup field changed
+    (ConfigChangeType == 'WindowsUsers'
      and (
-         SvcDisplayName contains 'Administrators'
-         or SvcDisplayName contains 'Remote Desktop Users'
-         or FieldsChanged has 'Members'
+         ChangeCategory == 'Added'
+         or FieldsChanged has_any ('GroupName', 'LocalGroup', 'Groups', 'Members')
      ))
     // Linux: sudoers file or group file modified
     or (ConfigChangeType == 'Files'
@@ -33,7 +35,7 @@ ConfigurationChange
     Computer,
     OS          = _OSType,
     ChangeType  = ConfigChangeType,
-    Path        = coalesce(FileSystemPath, SvcDisplayName),
+    Path        = coalesce(FileSystemPath, UserName),
     ChangeCategory,
     FieldsChanged,
     Previous,
